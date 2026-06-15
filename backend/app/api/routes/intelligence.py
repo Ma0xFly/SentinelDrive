@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import Select, case, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -15,15 +15,19 @@ from app.api.deps import get_current_user, get_request_session
 from app.api.safety import safe_dict, safe_metadata, safe_text, safe_url
 from app.api.schemas.intelligence import (
     IntelligenceDetailResponse,
+    IntelligenceIngestRequest,
+    IntelligenceIngestResponse,
     IntelligenceListItemResponse,
     IntelligencePageResponse,
     IntelligenceSort,
     RelatedAlertResponse,
     SourceAttributionResponse,
 )
-from app.db.types import AttackSurface, IntelligenceType, RiskLevel, Severity, VehicleComponent
+from app.db.types import AttackSurface, AuditAction, IntelligenceType, RiskLevel, Severity, VehicleComponent
 from app.models.intelligence import ThreatIntelligence, ThreatIntelligenceSource
 from app.models.security import User
+from app.services.audit import record_audit_event
+from app.services.intelligence_ingest import ingest_external_intelligence, ingest_response_snapshot
 
 router = APIRouter(prefix="/intelligence", tags=["intelligence"])
 
@@ -50,6 +54,49 @@ class IntelligenceSearchParams:
     status: str | None = None
     intelligence_type: IntelligenceType | None = None
     sort: IntelligenceSort = IntelligenceSort.RECENT
+
+
+@router.post("/ingest", response_model=IntelligenceIngestResponse, status_code=status.HTTP_201_CREATED)
+async def ingest_intelligence(
+    payload: IntelligenceIngestRequest,
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_request_session),
+) -> IntelligenceIngestResponse:
+    outcome = ingest_external_intelligence(session, payload, actor_user_id=current_user.id)
+    snapshot = ingest_response_snapshot(outcome.entry, duplicate=outcome.duplicate)
+    record_audit_event(
+        session,
+        action=AuditAction.MANUAL_ENTRY,
+        entity_type="threat_intelligence",
+        summary="External intelligence ingested" if not outcome.duplicate else "Duplicate external intelligence ingested",
+        actor_user_id=current_user.id,
+        entity_id=outcome.entry.id,
+        after=snapshot,
+        metadata={
+            "entry_origin": "external_ingest",
+            "duplicate": outcome.duplicate,
+            "dedup_key": outcome.entry.dedup_key,
+            "source_name": safe_text(payload.source_name),
+            "platform": safe_text(payload.platform),
+        },
+    )
+    session.commit()
+    session.refresh(outcome.entry)
+    if outcome.duplicate:
+        response.status_code = status.HTTP_200_OK
+    return IntelligenceIngestResponse(
+        id=outcome.entry.id,
+        raw_intelligence_id=outcome.entry.raw_intelligence_id,
+        status=outcome.result,
+        duplicate=outcome.duplicate,
+        dedup_key=outcome.entry.dedup_key,
+        title=outcome.entry.title,
+        cve_id=outcome.entry.cve_id,
+        source_name=_first_value(outcome.entry.source_names) or "",
+        source_url=safe_url(_first_value(outcome.entry.source_urls)) or "",
+        message="外部情报已接收。" if not outcome.duplicate else "外部情报已存在，已更新来源信息。",
+    )
 
 
 @router.get("", response_model=IntelligencePageResponse)
@@ -458,3 +505,9 @@ def _float_or_none(value: Any) -> float | None:
     if isinstance(value, Decimal):
         return float(value)
     return float(value)
+
+
+def _first_value(values: list[str] | None) -> str | None:
+    if not values:
+        return None
+    return values[0]
