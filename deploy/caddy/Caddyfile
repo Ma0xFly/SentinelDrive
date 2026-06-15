@@ -1,0 +1,9 @@
+{$CADDY_HOST} {
+	handle_path /api/* {
+		reverse_proxy {$BACKEND_UPSTREAM}
+	}
+
+	handle {
+		reverse_proxy {$FRONTEND_UPSTREAM}
+	}
+}

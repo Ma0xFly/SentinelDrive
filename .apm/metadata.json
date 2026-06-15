@@ -1,0 +1,38 @@
+{
+  "source": "official",
+  "repository": "sdi2200262/agentic-project-management",
+  "releaseVersion": "v1.0.1",
+  "cliVersion": "1.0.1",
+  "assistants": [
+    "codex"
+  ],
+  "installedFiles": {
+    "codex": [
+      ".agents/skills/apm-1-initiate-planner/SKILL.md",
+      ".agents/skills/apm-2-initiate-manager/SKILL.md",
+      ".agents/skills/apm-3-initiate-worker/SKILL.md",
+      ".agents/skills/apm-4-check-tasks/SKILL.md",
+      ".agents/skills/apm-5-check-reports/SKILL.md",
+      ".agents/skills/apm-6-handoff-manager/SKILL.md",
+      ".agents/skills/apm-7-handoff-worker/SKILL.md",
+      ".agents/skills/apm-8-summarize-session/SKILL.md",
+      ".agents/skills/apm-9-recover/SKILL.md",
+      ".agents/skills/apm-communication/SKILL.md",
+      ".agents/skills/apm-communication/bus-integration.md",
+      ".codex/agents/apm-archive-explorer.toml",
+      ".codex/apm-guides/context-gathering.md",
+      ".codex/apm-guides/task-assignment.md",
+      ".codex/apm-guides/task-execution.md",
+      ".codex/apm-guides/task-logging.md",
+      ".codex/apm-guides/task-review.md",
+      ".codex/apm-guides/work-breakdown.md"
+    ],
+    "_apm": [
+      ".apm/memory/index.md",
+      ".apm/plan.md",
+      ".apm/spec.md",
+      ".apm/tracker.md"
+    ]
+  },
+  "installedAt": "2026-05-18T11:43:42.547Z"
+}

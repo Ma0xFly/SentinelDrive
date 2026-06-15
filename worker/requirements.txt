@@ -1,0 +1,4 @@
+celery[redis]==5.4.0
+psycopg[binary]==3.2.1
+redis==5.0.7
+SQLAlchemy==2.0.36

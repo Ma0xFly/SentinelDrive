@@ -1,0 +1,23 @@
+{
+  "name": "sentineldrive-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0 -p 3000",
+    "build": "next build",
+    "start": "node .next/standalone/server.js",
+    "check": "next build",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "next": "15.5.18",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "overrides": {
+    "postcss": "8.5.10"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
+  }
+}

@@ -1,0 +1,190 @@
+services:
+  reverse-proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "${REVERSE_PROXY_HTTP_PORT:-80}:80"
+      - "${REVERSE_PROXY_HTTPS_PORT:-443}:443"
+    environment:
+      CADDY_HOST: ${CADDY_HOST:-localhost}
+      CADDY_TLS_EMAIL: ${CADDY_TLS_EMAIL:-}
+      FRONTEND_UPSTREAM: ${FRONTEND_UPSTREAM:-frontend:3000}
+      BACKEND_UPSTREAM: ${BACKEND_UPSTREAM:-backend:8000}
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      frontend:
+        condition: service_started
+      backend:
+        condition: service_started
+    networks:
+      - public
+      - internal
+
+  frontend:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api}
+    expose:
+      - "3000"
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - public
+      - internal
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-change-me-development-only}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://sentineldrive:change-me-development-only@postgres:5432/sentineldrive}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/2}
+      ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL:-admin@example.test}
+      ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:-change-me-development-only}
+      NVD_API_KEY: ${NVD_API_KEY:-}
+      SOURCE_ENABLED_NVD: ${SOURCE_ENABLED_NVD:-true}
+      SOURCE_ENABLED_CISA_KEV: ${SOURCE_ENABLED_CISA_KEV:-true}
+      SOURCE_ENABLED_VENDOR_ADVISORIES: ${SOURCE_ENABLED_VENDOR_ADVISORIES:-false}
+      SOURCE_ENABLED_RSS: ${SOURCE_ENABLED_RSS:-true}
+      SOURCE_RSS_FEEDS: ${SOURCE_RSS_FEEDS:-[]}
+      SOURCE_VENDOR_ADVISORY_ENDPOINTS: ${SOURCE_VENDOR_ADVISORY_ENDPOINTS:-}
+      SOURCE_SYNC_INTERVAL_SECONDS: ${SOURCE_SYNC_INTERVAL_SECONDS:-3600}
+      SOURCE_TIMEOUT_SECONDS: ${SOURCE_TIMEOUT_SECONDS:-20}
+      SOURCE_RATE_LIMIT_PER_MINUTE: ${SOURCE_RATE_LIMIT_PER_MINUTE:-20}
+      SOURCE_RETRY_ATTEMPTS: ${SOURCE_RETRY_ATTEMPTS:-3}
+      READINESS_TIMEOUT_SECONDS: ${READINESS_TIMEOUT_SECONDS:-2}
+      RAW_RETENTION_DAYS: ${RAW_RETENTION_DAYS:-90}
+      HTML_RETENTION_MODE: ${HTML_RETENTION_MODE:-metadata_only}
+      PDF_RETENTION_MODE: ${PDF_RETENTION_MODE:-metadata_only}
+    expose:
+      - "8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+
+  scheduler:
+    build:
+      context: ./worker
+    restart: unless-stopped
+    command: ["./scripts/start-scheduler.sh"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://sentineldrive:change-me-development-only@postgres:5432/sentineldrive}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/2}
+      APP_ENV: ${APP_ENV:-development}
+      CELERY_LOG_LEVEL: ${CELERY_LOG_LEVEL:-INFO}
+      SOURCE_ENABLED_NVD: ${SOURCE_ENABLED_NVD:-true}
+      SOURCE_ENABLED_CISA_KEV: ${SOURCE_ENABLED_CISA_KEV:-true}
+      SOURCE_ENABLED_VENDOR_ADVISORIES: ${SOURCE_ENABLED_VENDOR_ADVISORIES:-false}
+      SOURCE_ENABLED_RSS: ${SOURCE_ENABLED_RSS:-true}
+      SOURCE_RSS_FEEDS: ${SOURCE_RSS_FEEDS:-[]}
+      SOURCE_VENDOR_ADVISORY_ENDPOINTS: ${SOURCE_VENDOR_ADVISORY_ENDPOINTS:-}
+      SOURCE_ENABLED_SAMPLE: ${SOURCE_ENABLED_SAMPLE:-true}
+      SOURCE_SYNC_INTERVAL_SECONDS: ${SOURCE_SYNC_INTERVAL_SECONDS:-3600}
+      SOURCE_TIMEOUT_SECONDS: ${SOURCE_TIMEOUT_SECONDS:-20}
+      SOURCE_RATE_LIMIT_PER_MINUTE: ${SOURCE_RATE_LIMIT_PER_MINUTE:-20}
+      SOURCE_RETRY_ATTEMPTS: ${SOURCE_RETRY_ATTEMPTS:-3}
+      RAW_RETENTION_DAYS: ${RAW_RETENTION_DAYS:-90}
+      NVD_API_KEY: ${NVD_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+      - egress
+
+  worker:
+    build:
+      context: ./worker
+    restart: unless-stopped
+    command: ["./scripts/start-worker.sh"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://sentineldrive:change-me-development-only@postgres:5432/sentineldrive}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/2}
+      APP_ENV: ${APP_ENV:-development}
+      CELERY_LOG_LEVEL: ${CELERY_LOG_LEVEL:-INFO}
+      CELERY_WORKER_CONCURRENCY: ${CELERY_WORKER_CONCURRENCY:-2}
+      SOURCE_ENABLED_NVD: ${SOURCE_ENABLED_NVD:-true}
+      SOURCE_ENABLED_CISA_KEV: ${SOURCE_ENABLED_CISA_KEV:-true}
+      SOURCE_ENABLED_VENDOR_ADVISORIES: ${SOURCE_ENABLED_VENDOR_ADVISORIES:-false}
+      SOURCE_ENABLED_RSS: ${SOURCE_ENABLED_RSS:-true}
+      SOURCE_RSS_FEEDS: ${SOURCE_RSS_FEEDS:-[]}
+      SOURCE_VENDOR_ADVISORY_ENDPOINTS: ${SOURCE_VENDOR_ADVISORY_ENDPOINTS:-}
+      SOURCE_ENABLED_SAMPLE: ${SOURCE_ENABLED_SAMPLE:-true}
+      SOURCE_SYNC_INTERVAL_SECONDS: ${SOURCE_SYNC_INTERVAL_SECONDS:-3600}
+      SOURCE_TIMEOUT_SECONDS: ${SOURCE_TIMEOUT_SECONDS:-20}
+      SOURCE_RATE_LIMIT_PER_MINUTE: ${SOURCE_RATE_LIMIT_PER_MINUTE:-20}
+      SOURCE_RETRY_ATTEMPTS: ${SOURCE_RETRY_ATTEMPTS:-3}
+      RAW_RETENTION_DAYS: ${RAW_RETENTION_DAYS:-90}
+      NVD_API_KEY: ${NVD_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+      - egress
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sentineldrive}
+      POSTGRES_USER: ${POSTGRES_USER:-sentineldrive}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-development-only}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sentineldrive} -d ${POSTGRES_DB:-sentineldrive}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "${REDIS_MAXMEMORY:-256mb}", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+networks:
+  public:
+  egress:
+  internal:
+    internal: true
+
+volumes:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:

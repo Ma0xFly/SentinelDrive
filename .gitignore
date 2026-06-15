@@ -1,0 +1,14 @@
+情报/.obsidian/
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+.pytest_cache/
+.next/
+node_modules/
+playwright-report/
+test-results/
+dist/
+build/
+backups/
