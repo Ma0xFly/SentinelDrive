@@ -206,7 +206,7 @@ a {
 .content-area {
   display: grid;
   gap: 18px;
-  width: min(1180px, 100%);
+  width: min(1680px, 100%);
   margin: 0 auto;
   padding: 22px 28px 36px;
 }
@@ -352,6 +352,7 @@ a {
 }
 
 .table-wrap {
+  max-width: 100%;
   overflow-x: auto;
 }
 
@@ -387,6 +388,7 @@ th {
 
 td {
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 tbody tr:hover {
@@ -394,21 +396,23 @@ tbody tr:hover {
 }
 
 .dense-table {
-  min-width: 1040px;
+  min-width: min(1120px, max-content);
 }
 
 .cell-title {
-  max-width: 360px;
+  max-width: clamp(280px, 30vw, 520px);
   font-weight: 700;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .cell-subtext {
-  max-width: 420px;
+  max-width: clamp(300px, 36vw, 620px);
   margin-top: 4px;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .text-link {
@@ -477,6 +481,10 @@ tbody tr:hover {
   gap: 14px;
   align-items: flex-start;
   justify-content: space-between;
+}
+
+.operations-header > div:first-child {
+  min-width: 0;
 }
 
 .operations-header h3,
@@ -592,7 +600,7 @@ tbody tr:hover {
 
 .split-workbench {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  grid-template-columns: minmax(0, 1fr) clamp(340px, 27vw, 460px);
   gap: 16px;
   padding: 0 18px 18px;
 }
@@ -613,6 +621,8 @@ tbody tr:hover {
   align-self: start;
   display: grid;
   gap: 14px;
+  min-width: 0;
+  max-width: 100%;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 16px;
@@ -623,6 +633,7 @@ tbody tr:hover {
   margin: 0;
   font-size: 16px;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .selected-row {
@@ -704,6 +715,7 @@ tbody tr:hover {
 
 .record-item strong {
   line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .record-item span {
@@ -825,6 +837,7 @@ tbody tr:hover {
 
 .detail-grid div {
   min-height: 82px;
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 13px;
@@ -858,6 +871,7 @@ tbody tr:hover {
   margin: 0;
   font-size: 20px;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .detail-summary p,
@@ -891,6 +905,7 @@ tbody tr:hover {
 
 .detail-block {
   margin: 0 18px 18px;
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 14px;
@@ -915,12 +930,17 @@ tbody tr:hover {
 
 .source-row {
   display: grid;
-  grid-template-columns: minmax(140px, 1fr) auto minmax(110px, auto) minmax(140px, auto);
+  grid-template-columns: minmax(180px, 1.4fr) minmax(90px, auto) minmax(120px, 0.8fr) minmax(140px, auto);
   gap: 10px;
   align-items: center;
   border-bottom: 1px solid var(--line);
   padding: 9px 0;
   font-size: 13px;
+}
+
+.source-row > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .source-row:last-child {
@@ -935,6 +955,7 @@ tbody tr:hover {
 }
 
 .metadata-grid div {
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 10px;
@@ -950,6 +971,16 @@ tbody tr:hover {
   margin: 6px 0 0;
   overflow-wrap: anywhere;
   font-size: 13px;
+}
+
+@media (max-width: 1180px) {
+  .split-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .split-detail {
+    align-self: stretch;
+  }
 }
 
 @media (max-width: 900px) {
@@ -976,8 +1007,7 @@ tbody tr:hover {
   }
 
   .detail-summary,
-  .source-row,
-  .split-workbench {
+  .source-row {
     grid-template-columns: 1fr;
   }
 }

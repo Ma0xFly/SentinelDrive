@@ -188,6 +188,32 @@ test("source operations expose pipeline trigger and separate alert evaluation", 
   await expect(page.getByText("告警评估已执行。 新建 1 条告警。")).toBeVisible();
 });
 
+test("desktop workbench layouts use available width without clipping core panels", async ({ page }) => {
+  const viewports = [
+    { width: 1366, height: 768 },
+    { width: 1440, height: 900 },
+    { width: 1920, height: 1080 }
+  ];
+
+  for (const viewport of viewports) {
+    await page.setViewportSize(viewport);
+    await login(page);
+
+    await expect(page.locator(".content-area")).toHaveWidthGreaterThan(Math.min(viewport.width - 248, 1680) - 80);
+    await expect(page.locator("body")).not.toHaveHorizontalOverflow();
+
+    await page.getByRole("link", { name: "查看" }).click();
+    await expect(page.getByRole("heading", { name: "Mocked OTA risk" })).toBeVisible();
+    await expect(page.locator("body")).not.toHaveHorizontalOverflow();
+
+    await page.getByRole("link", { name: "来源管理" }).click();
+    await expect(page.getByRole("heading", { name: "处理控制" })).toBeVisible();
+    await expect(page.locator(".split-detail")).toBeVisible();
+    await expect(page.locator(".split-detail")).toBeWithinViewport(viewport.width);
+    await expect(page.locator("body")).not.toHaveHorizontalOverflow();
+  }
+});
+
 test("alert review updates status and keeps linked intelligence reachable", async ({ page }) => {
   await login(page);
   await page.getByRole("link", { name: "告警" }).click();
@@ -204,10 +230,16 @@ test("alert review updates status and keeps linked intelligence reachable", asyn
 
 async function login(page) {
   await page.goto("/");
-  await page.getByPlaceholder("admin@example.test").fill(USER.email);
-  await page.getByPlaceholder("输入登录密码").fill("local-test-password");
-  await page.getByRole("button", { name: "登录工作台" }).click();
-  await expect(page.getByRole("heading", { name: "情报列表" })).toBeVisible();
+  const heading = page.getByRole("heading", { name: "情报列表" });
+  const loginButton = page.getByRole("button", { name: "登录工作台" });
+
+  await expect(heading.or(loginButton)).toBeVisible();
+  if (!(await heading.isVisible().catch(() => false))) {
+    await page.getByPlaceholder("admin@example.test").fill(USER.email);
+    await page.getByPlaceholder("输入登录密码").fill("local-test-password");
+    await loginButton.click();
+  }
+  await expect(heading).toBeVisible();
 }
 
 function json(route, body, status = 200) {
@@ -350,3 +382,38 @@ function pipelineStatus() {
     recent_failures: []
   };
 }
+
+expect.extend({
+  async toHaveWidthGreaterThan(locator, expectedWidth) {
+    const box = await locator.boundingBox();
+    const actualWidth = box?.width || 0;
+    const pass = actualWidth > expectedWidth;
+
+    return {
+      pass,
+      message: () => `expected ${locator} width ${actualWidth} to be greater than ${expectedWidth}`
+    };
+  },
+
+  async toHaveHorizontalOverflow(locator) {
+    const hasOverflow = await locator.evaluate((element) => element.scrollWidth > element.clientWidth + 1);
+
+    return {
+      pass: hasOverflow,
+      message: () => `expected ${locator} ${hasOverflow ? "not " : ""}to have horizontal overflow`
+    };
+  },
+
+  async toBeWithinViewport(locator, viewportWidth) {
+    const box = await locator.boundingBox();
+    const pass = Boolean(box && box.x >= 0 && box.x + box.width <= viewportWidth + 1);
+
+    return {
+      pass,
+      message: () => {
+        const details = box ? `x=${box.x}, width=${box.width}, viewport=${viewportWidth}` : "element has no bounding box";
+        return `expected ${locator} to be within viewport (${details})`;
+      }
+    };
+  }
+});
