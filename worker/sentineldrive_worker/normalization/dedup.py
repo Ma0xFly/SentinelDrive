@@ -67,6 +67,35 @@ def canonical_url(value: object) -> str | None:
     return text
 
 
+def external_ingest_dedup_key(
+    *,
+    cve_id: str | None,
+    dedup_key: str | None,
+    external_id: str | None,
+    source_name: str,
+    source_url: str | None,
+    content_hash: str | None,
+    normalized_text_hash: str | None,
+) -> str:
+    """Mirror the backend ingest `_dedup_key` priority and string format.
+
+    External/AI raw records normalized by the worker must converge on the
+    same key the backend ingest API produces, so a record entering through
+    either path lands on a single core intelligence row.
+    """
+    if cve_id:
+        return f"cve:{cve_id.upper()}"
+    if dedup_key:
+        return f"external:{stable_hash({'dedup_key': dedup_key})[:48]}"
+    if external_id:
+        return f"external:{stable_hash({'source_name': source_name, 'external_id': external_id})[:48]}"
+    if content_hash:
+        return f"content:{content_hash}"
+    if source_url:
+        return f"url:{stable_hash({'url': source_url})[:48]}"
+    return f"text:{normalized_text_hash or content_hash}"
+
+
 def dedup_key(*, cve_id: str | None, source_url: str | None, title: str | None, source_name: str | None, content_hash: str | None, normalized_text_hash: str | None) -> str:
     if cve_id:
         return f"cve:{cve_id.upper()}"

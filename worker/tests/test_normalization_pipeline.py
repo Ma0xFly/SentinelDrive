@@ -7,6 +7,11 @@ import pytest
 from sqlalchemy import create_engine, insert, select
 from sqlalchemy.orm import sessionmaker
 
+from app.api.schemas.intelligence import IntelligenceIngestRequest
+from app.services.intelligence_ingest import _dedup_key as backend_dedup_key
+from sentineldrive_worker.normalization.dedup import external_ingest_dedup_key, normalize_cve
+from sentineldrive_worker.normalization.models import NormalizationError
+from sentineldrive_worker.normalization.normalizers import ExternalIngestNormalizer
 from sentineldrive_worker.normalization.service import normalize_pending_raw_intelligence, sanitize_error
 from sentineldrive_worker.persistence.tables import metadata, raw_intelligence, sources, threat_intelligence, threat_intelligence_sources
 
@@ -236,6 +241,192 @@ def test_normalization_error_sanitizer_redacts_token_like_values():
 
     assert "super-secret" not in message
     assert "[redacted]" in message
+
+
+def _ingest_payload(**overrides):
+    values = {
+        "source_name": "AI Collector",
+        "source_url": "https://intel.example.test/items/lead-1",
+        "title": "Vehicle cloud API advisory",
+        "summary": "AI整理的云端 API 线索。",
+    }
+    values.update(overrides)
+    return IntelligenceIngestRequest(**values)
+
+
+@pytest.mark.parametrize(
+    "payload_kwargs",
+    [
+        {"cve_id": "CVE-2026-9001"},
+        {"dedup_key": "platform-dedup-42"},
+        {"external_id": "wx-42"},
+        {"content_hash": "explicit-content-hash"},
+        {},
+    ],
+)
+def test_external_ingest_dedup_key_matches_backend(payload_kwargs):
+    source_name = "AI Collector"
+    source_url = "https://intel.example.test/items/lead-1"
+    normalized_text_hash = "text-hash"
+    payload = _ingest_payload(**payload_kwargs)
+
+    expected = backend_dedup_key(payload, source_name, source_url, "derived-content", normalized_text_hash)
+    actual = external_ingest_dedup_key(
+        cve_id=normalize_cve(payload.cve_id),
+        dedup_key=payload.dedup_key,
+        external_id=payload.external_id,
+        source_name=source_name,
+        source_url=source_url,
+        content_hash=payload.content_hash,
+        normalized_text_hash=normalized_text_hash,
+    )
+
+    assert actual == expected
+
+
+def test_external_ingest_dedup_key_text_branch_matches_backend():
+    payload = _ingest_payload()
+    expected = backend_dedup_key(payload, "AI Collector", "", "derived-content", "text-hash")
+    actual = external_ingest_dedup_key(
+        cve_id=None,
+        dedup_key=None,
+        external_id=None,
+        source_name="AI Collector",
+        source_url="",
+        content_hash=None,
+        normalized_text_hash="text-hash",
+    )
+
+    assert actual == expected == "text:text-hash"
+
+
+def test_external_ingest_normalization_maps_fields_and_matches_ingest_dedup_key(session_factory):
+    source_id = seed_source(session_factory, "external-collector", "api")
+    seed_raw(
+        session_factory,
+        source_id=source_id,
+        source_name="AI Collector",
+        source_type="api",
+        source_url="https://intel.example.test/items/wx-9001",
+        external_id="wx-9001",
+        title="CVE-2026-9001 affects vehicle cloud API",
+        summary="AI整理的车联网云端 API 漏洞线索。",
+        first_seen_at=datetime(2026, 6, 1, tzinfo=timezone.utc),
+        metadata={
+            "entry_origin": "external_ingest",
+            "platform": "weixin",
+            "cnvd_id": "CNVD-2026-0001",
+            "vendor_advisory_id": "VAD-1",
+            "affected_vendor": "ExampleAuto",
+            "affected_products": ["cloud gateway"],
+            "components": ["cloud api"],
+            "attack_surfaces": ["cloud_api"],
+            "severity": "high",
+            "external_score": 8.8,
+        },
+    )
+
+    result = normalize_pending_raw_intelligence(session_factory=session_factory)
+
+    assert result["normalized"] == 1
+    with session_factory() as session:
+        record = session.execute(select(threat_intelligence)).mappings().one()
+        assert record["dedup_key"] == "cve:CVE-2026-9001"
+        assert record["cve_id"] == "CVE-2026-9001"
+        assert record["intelligence_type"] == "vulnerability"
+        assert record["severity"] == "high"
+        assert record["risk_level"] == "high"
+        assert float(record["risk_score"]) == 8.8
+        assert record["affected_vendor"] == "ExampleAuto"
+        assert record["affected_product"] == "cloud gateway"
+        assert record["vehicle_component"] == "cloud_api"
+        assert record["attack_surface"] == "cloud_api"
+        assert {"external_ingest", "weixin", "cloud_api"}.issubset(set(record["tags"]))
+        assert record["external_ids"]["external_id"] == "wx-9001"
+        assert record["external_ids"]["cve_id"] == "CVE-2026-9001"
+        assert record["external_ids"]["cnvd_id"] == "CNVD-2026-0001"
+        assert record["external_ids"]["vendor_advisory_id"] == "VAD-1"
+        source_links = session.execute(select(threat_intelligence_sources)).mappings().all()
+        assert len(source_links) == 1
+        assert source_links[0]["source_name"] == "AI Collector"
+        assert source_links[0]["external_id"] == "wx-9001"
+        raw_statuses = session.execute(select(raw_intelligence.c.processing_status, raw_intelligence.c.parsing_status)).all()
+        assert raw_statuses == [("normalized", "normalized")]
+
+
+def test_external_ingest_normalizer_skips_already_normalized_row():
+    normalizer = ExternalIngestNormalizer()
+    raw_row = {
+        "source_name": "AI Collector",
+        "source_type": "api",
+        "source_url": "https://intel.example.test/items/already-normalized",
+        "external_id": "wx-already",
+        "title": "Already normalized external ingest",
+        "summary": "summary",
+        "snippet": "summary",
+        "content_hash": "content-already",
+        "processing_status": "normalized",
+        "parsing_status": "normalized",
+        "fetched_at": datetime(2026, 6, 15, tzinfo=timezone.utc),
+        "first_seen_at": datetime(2026, 6, 1, tzinfo=timezone.utc),
+        "metadata": {"entry_origin": "external_ingest"},
+    }
+
+    with pytest.raises(NormalizationError):
+        normalizer.normalize(raw_row)
+
+
+def test_external_ingest_normalized_raw_rows_are_skipped_by_pending_query(session_factory):
+    source_id = seed_source(session_factory, "external-collector", "api")
+    seed_raw(
+        session_factory,
+        source_id=source_id,
+        source_name="AI Collector",
+        source_type="api",
+        source_url="https://intel.example.test/items/already-normalized",
+        external_id="wx-already",
+        title="Already normalized external ingest",
+        metadata={"entry_origin": "external_ingest"},
+        processing_status="normalized",
+        parsing_status="normalized",
+    )
+
+    result = normalize_pending_raw_intelligence(session_factory=session_factory)
+
+    assert result["raw_seen"] == 0
+    with session_factory() as session:
+        assert session.execute(select(threat_intelligence)).mappings().all() == []
+
+
+def test_external_ingest_reprocessing_converges_on_single_core_record(session_factory):
+    source_id = seed_source(session_factory, "external-collector", "api")
+    raw_id = seed_raw(
+        session_factory,
+        source_id=source_id,
+        source_name="AI Collector",
+        source_type="api",
+        source_url="https://intel.example.test/items/lead-no-cve",
+        external_id="wx-42",
+        title="Vehicle cloud API exposure lead",
+        summary="No CVE, dedup by external id.",
+        metadata={"entry_origin": "external_ingest", "attack_surfaces": ["cloud_api"]},
+    )
+
+    first = normalize_pending_raw_intelligence(session_factory=session_factory)
+    with session_factory() as session:
+        session.execute(
+            raw_intelligence.update()
+            .where(raw_intelligence.c.id == raw_id)
+            .values(processing_status="collected")
+        )
+        session.commit()
+    second = normalize_pending_raw_intelligence(session_factory=session_factory)
+
+    assert first["normalized"] == 1
+    assert second["normalized"] == 1
+    with session_factory() as session:
+        assert len(session.execute(select(threat_intelligence)).mappings().all()) == 1
+        assert len(session.execute(select(threat_intelligence_sources)).mappings().all()) == 1
 
 
 def seed_source(session_factory, name: str, source_type: str):

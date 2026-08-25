@@ -7,6 +7,7 @@ from typing import Any, Mapping
 from sentineldrive_worker.normalization.dedup import (
     canonical_url,
     dedup_key,
+    external_ingest_dedup_key,
     find_cve,
     normalize_cve,
     normalize_cwe,
@@ -269,6 +270,74 @@ class ManualNormalizer(BaseNormalizer):
         return record
 
 
+class ExternalIngestNormalizer(BaseNormalizer):
+    def normalize(self, raw: Mapping[str, Any]) -> NormalizedRecord:
+        metadata = dict(raw.get("metadata") or {})
+        if metadata.get("entry_origin") == "external_ingest" and raw.get("processing_status") == "normalized":
+            raise NormalizationError("external ingest raw record is already normalized by backend ingest API")
+
+        source_name = str(raw.get("source_name") or "External Ingest")
+        source_url = canonical_url(raw.get("source_url"))
+        cve_id = normalize_cve(metadata.get("cve_id")) or find_cve(
+            raw.get("external_id"), raw.get("title"), raw.get("summary"), raw.get("source_url")
+        )
+        external_id = clean_optional(metadata.get("external_id") or raw.get("external_id"))
+        dedup_key_value = clean_optional(metadata.get("dedup_key"))
+        content_hash = clean_optional(raw.get("content_hash"))
+
+        affected_products = metadata.get("affected_products") if isinstance(metadata.get("affected_products"), list) else []
+        components = metadata.get("components") if isinstance(metadata.get("components"), list) else []
+        attack_surfaces = metadata.get("attack_surfaces") if isinstance(metadata.get("attack_surfaces"), list) else []
+        severity = severity_value(metadata.get("severity"))
+        intelligence_type = "vulnerability" if cve_id else ("exposure" if attack_surfaces else "advisory")
+
+        record = self.base_record(
+            raw,
+            title=clean_title(raw.get("title"), raw),
+            summary=clean_optional(raw.get("summary")),
+            intelligence_type=intelligence_type,
+            cve_id=cve_id,
+            severity=severity,
+            affected_vendor=clean_optional(metadata.get("affected_vendor")),
+            affected_product=affected_products[0] if affected_products else None,
+            vehicle_component=infer_vehicle_component(*components),
+            attack_surface=infer_attack_surface(*attack_surfaces),
+            tags=compact_tags(["external_ingest", metadata.get("platform"), *components, *attack_surfaces]),
+            metadata={
+                "entry_origin": "external_ingest",
+                "platform": metadata.get("platform"),
+                "cnvd_id": metadata.get("cnvd_id"),
+                "vendor_advisory_id": metadata.get("vendor_advisory_id"),
+                "published_at": metadata.get("published_at"),
+                "collected_at": metadata.get("collected_at"),
+            },
+        )
+        record.risk_score = float_or_none(metadata.get("external_score"))
+        record.risk_level = risk_level_from_severity(severity)
+        record.external_ids = {
+            key: value
+            for key, value in (
+                ("external_id", external_id),
+                ("cve_id", cve_id),
+                ("cnvd_id", clean_optional(metadata.get("cnvd_id"))),
+                ("vendor_advisory_id", clean_optional(metadata.get("vendor_advisory_id"))),
+                ("dedup_key", dedup_key_value),
+                ("content_hash", content_hash),
+            )
+            if value
+        }
+        record.dedup_key = external_ingest_dedup_key(
+            cve_id=cve_id,
+            dedup_key=dedup_key_value,
+            external_id=external_id,
+            source_name=source_name,
+            source_url=source_url,
+            content_hash=content_hash,
+            normalized_text_hash=record.normalized_text_hash,
+        )
+        return record
+
+
 class FallbackNormalizer(BaseNormalizer):
     def normalize(self, raw: Mapping[str, Any]) -> NormalizedRecord:
         text = " ".join(str(raw.get(key) or "") for key in ("title", "summary", "snippet", "source_url", "external_id"))
@@ -298,6 +367,7 @@ def register_builtin_normalizers(target_registry: NormalizerRegistry = registry)
     target_registry.register_source_type("api", FallbackNormalizer)
     target_registry.register_source_type("html", VendorAdvisoryNormalizer)
     target_registry.register_source_type("pdf", VendorAdvisoryNormalizer)
+    target_registry.register_entry_origin("external_ingest", ExternalIngestNormalizer)
     return target_registry
 
 
@@ -345,6 +415,16 @@ def float_or_none(value: object) -> float | None:
 def severity_value(value: object) -> str:
     normalized = normalize_text(value)
     return normalized if normalized in {"unknown", "low", "medium", "high", "critical"} else "unknown"
+
+
+def risk_level_from_severity(severity: str) -> str:
+    return {
+        "critical": "critical",
+        "high": "high",
+        "medium": "medium",
+        "low": "low",
+        "unknown": "info",
+    }.get(severity, "info")
 
 
 def exploit_status_from_text(*values: object) -> str:
