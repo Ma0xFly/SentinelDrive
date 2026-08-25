@@ -1,9 +1,9 @@
-# Backend Migrations
+# 后端数据库迁移
 
-Run migrations through the existing project command:
+通过既有的项目命令执行迁移：
 
 ```bash
 make migrate
 ```
 
-The command runs `alembic upgrade head` inside the backend service and reads `DATABASE_URL` from the environment.
+该命令在 backend 服务内运行 `alembic upgrade head`，并从环境变量读取 `DATABASE_URL`。

@@ -29,7 +29,7 @@ PostgreSQL、Redis、`worker` 和 `scheduler` 都是内部 Compose 服务。生�
 
 ```bash
 cd /opt
-git clone https://github.com/Ma0xFly/SentinelDrive.git sentineldrive
+git clone git@github.com:Ma0xFly/SentinelDrive.git sentineldrive  # 私有仓库，需先配置 SSH key 或 Deploy Key
 cd sentineldrive
 ```
 
@@ -103,7 +103,7 @@ Password: ADMIN_BOOTSTRAP_PASSWORD
 
 ## 数据源与处理
 
-Worker 需要出站网络访问，以便连接 NVD、CISA KEV、RSS feed 和厂商公告页面。PostgreSQL 和 Redis 仍保持内部服务，不发布宿主机端口。
+Worker 需要出站网络访问，以便连接 NVD、CISA KEV、RSS 数据源和厂商公告页面。PostgreSQL 和 Redis 仍保持内部服务，不发布宿主机端口。
 
 执行一次采集：
 
@@ -176,6 +176,7 @@ ls -lh "$backup_file"
 - [Connector 开发指南](docs/connectors.md)
 - [数据源配置示例](docs/source-configuration.md)
 - [测试与 QA 指南](docs/testing.md)
+- [术语表](docs/glossary.md)
 - [Compose 部署验证](docs/qa/compose-deployment-verification.md)
 - [运行时脚手架说明](docs/scaffold.md)
 

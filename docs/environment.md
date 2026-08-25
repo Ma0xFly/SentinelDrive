@@ -4,9 +4,9 @@
 
 部署前运行 `make config-check`。本地开发可在 `APP_ENV=development` 下使用安全占位值；当 `APP_ENV` 为生产类值（`production`、`prod` 或 `staging`）时，必须替换占位密钥和部署主机设置。检查只报告变量名，不打印密钥值。
 
-## Application
+## 应用
 
-| Variable | Used by | Safe example | Notes |
+| 变量 | 使用方 | 安全示例 | 说明 |
 | --- | --- | --- | --- |
 | `APP_ENV` | `backend`, `worker`, `scheduler` | `development` | 应用环境标识。生产类值会启用占位密钥校验。 |
 | `APP_SECRET_KEY` | `backend` | `change-me-development-only` | 后端必需，用于签名 API bearer tokens。生产类环境前必须替换。 |
@@ -14,9 +14,9 @@
 | `NODE_ENV` | `frontend` | `production` | 传给 Next.js 服务。 |
 | `NEXT_PUBLIC_API_BASE_URL` | `frontend` | `/api` | 浏览器可见 API base path。不要在 `NEXT_PUBLIC_` 变量中放密钥。 |
 
-## PostgreSQL
+## PostgreSQL 数据库
 
-| Variable | Used by | Safe example | Notes |
+| 变量 | 使用方 | 安全示例 | 说明 |
 | --- | --- | --- | --- |
 | `POSTGRES_DB` | `postgres` | `sentineldrive` | 数据库名。 |
 | `POSTGRES_USER` | `postgres` | `sentineldrive` | 数据库用户。 |
@@ -25,9 +25,9 @@
 
 PostgreSQL 必须保持 Compose 内部服务。
 
-## Redis and Celery
+## Redis 与 Celery
 
-| Variable | Used by | Safe example | Notes |
+| 变量 | 使用方 | 安全示例 | 说明 |
 | --- | --- | --- | --- |
 | `REDIS_URL` | `backend`, `worker`, `scheduler` | `redis://redis:6379/0` | 通用 Redis 连接 URL。 |
 | `CELERY_BROKER_URL` | `backend`, `worker`, `scheduler` | `redis://redis:6379/1` | Celery broker URL。Backend 只用它入队已批准的 processing pipeline task。 |
@@ -40,18 +40,18 @@ Redis 必须保持 Compose 内部服务。
 
 `worker` 和 `scheduler` 同时连接内部网络和 `egress` 网络。内部网络用于 PostgreSQL 和 Redis；egress 用于从 NVD、CISA KEV、RSS feeds 和厂商公告页面进行真实 HTTPS 采集。这不会发布 worker 或 scheduler 端口。
 
-## Admin Bootstrap
+## 管理员引导
 
-| Variable | Used by | Safe example | Notes |
+| 变量 | 使用方 | 安全示例 | 说明 |
 | --- | --- | --- | --- |
 | `ADMIN_BOOTSTRAP_EMAIL` | `backend` | `admin@example.test` | `make admin-bootstrap` 用于初始管理员账号的邮箱。生产类部署前替换。 |
 | `ADMIN_BOOTSTRAP_PASSWORD` | `backend` | `change-me-development-only` | `make admin-bootstrap` 使用的密码；只保存为密码哈希。共享、公网或生产类环境前替换。 |
 
 管理员 bootstrap 命令从环境读取这些值，不打印或存储明文密码。它保存 bcrypt 密码哈希，并在配置的管理员账号创建或重新激活时写入审计事件。
 
-## Source Collection
+## 数据源采集
 
-| Variable | Used by | Safe example | Notes |
+| 变量 | 使用方 | 安全示例 | 说明 |
 | --- | --- | --- | --- |
 | `NVD_API_KEY` | `backend`, `worker`, `scheduler` | empty | 可选。配置后，NVD Connector 会作为 `apiKey` 请求头发送。 |
 | `SOURCE_ENABLED_NVD` | `backend`, `worker`, `scheduler` | `true` | 启用 NVD CVE Connector。 |
@@ -70,17 +70,17 @@ Redis 必须保持 Compose 内部服务。
 
 当 `NVD_API_KEY` 为空时，配置加载器将其视为 unset，并应用更严格的未认证 NVD 限速。`SOURCE_RSS_FEEDS` 和 `SOURCE_VENDOR_ADVISORY_ENDPOINTS` 设置时必须是合法 JSON list；格式错误应导致配置或 Connector 校验失败，而不是静默忽略。
 
-## Retention
+## 数据留存
 
-| Variable | Used by | Safe example | Notes |
+| 变量 | 使用方 | 安全示例 | 说明 |
 | --- | --- | --- | --- |
 | `RAW_RETENTION_DAYS` | `backend`, `worker`, `scheduler` | `90` | 计划中的轻量 raw 留存周期。 |
 | `HTML_RETENTION_MODE` | `backend` | `metadata_only` | 默认保存 URL/title/summary/hash/fetch metadata/parsing status，而不是完整 HTML 快照。 |
 | `PDF_RETENTION_MODE` | `backend` | `metadata_only` | 默认保存 metadata 和链接，而不是下载 PDF 附件。 |
 
-## Reverse Proxy
+## 反向代理
 
-| Variable | Used by | Safe example | Notes |
+| 变量 | 使用方 | 安全示例 | 说明 |
 | --- | --- | --- | --- |
 | `CADDY_HOST` | `reverse-proxy` | `localhost` | Caddy 匹配的 host。 |
 | `CADDY_TLS_EMAIL` | `reverse-proxy` | empty | 配置 TLS 自动化时使用的邮箱。 |
@@ -89,14 +89,14 @@ Redis 必须保持 Compose 内部服务。
 | `FRONTEND_UPSTREAM` | `reverse-proxy` | `frontend:3000` | 内部 frontend upstream。 |
 | `BACKEND_UPSTREAM` | `reverse-proxy` | `backend:8000` | 内部 backend upstream。 |
 
-## Service Exposure
+## 服务暴露
 
 - 公共宿主机端口只由 `reverse-proxy` 发布。
 - `frontend` 和 `backend` 使用 Compose `expose`，通过 `reverse-proxy` 访问。
 - `postgres`、`redis`、`worker` 和 `scheduler` 没有宿主机端口映射。
 - `worker` 和 `scheduler` 需要出站 egress 进行真实数据源采集，但仍是非公开服务。
 
-## Validation Behavior
+## 校验行为
 
 - 当 `APP_ENV` 为 `production`、`prod` 或 `staging` 时，后端 settings 会拒绝占位生产配置。
 - `make config-check` 对 `.env` 或 `ENV_FILE=/path/to/file` 执行同样面向部署的占位检查。

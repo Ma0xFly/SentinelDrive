@@ -387,7 +387,7 @@ docker builder prune
 | WSL 中 Docker 不可用 | `docker info --format '{{.ServerVersion}}'` 失败 | 使用 `sudo service docker start` 启动 Docker，再重新运行 `docker info`。 |
 | 本地浏览器出现证书提示或 HTTPS 混乱 | 本地 `.env` 中 `CADDY_HOST=localhost` | 仅本地 HTTP 预览时设置 `CADDY_HOST=:80` 并重建 `reverse-proxy`。生产类部署使用真实 host。 |
 | `/api/ready` 报 PostgreSQL 或 Redis 失败 | `docker compose ps`；`docker compose logs --tail=100 postgres redis backend` | 确认 `postgres` 和 `redis` 健康，再重启 `backend`。不要为调试 readiness 发布内部端口。 |
-| Worker 无法解析 NVD/CISA/RSS hosts | `docker compose exec worker python -c "import socket; print(socket.getaddrinfo('services.nvd.nist.gov', 443)[0][4][0])"` | 确认 `worker` 和 `scheduler` 连接 `egress`；用 `docker compose up -d --build worker scheduler` 重建/重建容器。 |
+| Worker 无法解析 NVD/CISA/RSS hosts | `docker compose exec worker python -c "import socket; print(socket.getaddrinfo('services.nvd.nist.gov', 443)[0][4][0])"` | 确认 `worker` 和 `scheduler` 连接 `egress`；用 `docker compose up -d --build worker scheduler` 重建镜像并重新创建容器。 |
 | NVD 返回请求错误 | `docker compose logs --tail=200 worker \| grep -Ei nvd` | 保持默认 120 天 `lastMod` window。只有在安全配置时添加 `NVD_API_KEY`；它是可选项。 |
 | Admin bootstrap 出现 Passlib/bcrypt 兼容 warning | `docker compose run --rm backend ./scripts/admin-bootstrap.sh` | 从当前 requirements 重建 backend image，当前版本 pin 了 `bcrypt==4.0.1`：`docker compose build backend`。 |
 | Worker 日志出现 PostgreSQL enum cast 错误，例如 `source_type is of type source_type` | `docker compose logs --tail=200 worker postgres` | 使用当前代码重建并重新创建 `worker` 和 `scheduler`；worker metadata 会渲染 PostgreSQL enum bind casts。 |
