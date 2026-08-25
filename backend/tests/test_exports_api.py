@@ -180,6 +180,10 @@ def csv_rows(text: str) -> list[dict[str, str]]:
     return list(csv.DictReader(io.StringIO(text)))
 
 
+def _pdf_hex_text(value: str) -> bytes:
+    return value.encode("utf-16-be").hex().upper().encode("ascii")
+
+
 @pytest.mark.anyio
 async def test_export_routes_require_authentication():
     session = ExportSession()
@@ -227,9 +231,9 @@ async def test_intelligence_csv_export_honors_filters_and_redacts_urls():
     assert "attachment;" in response.headers["content-disposition"]
     rows = csv_rows(response.text)
     assert len(rows) == 1
-    assert rows[0]["id"] == str(included.id)
-    assert rows[0]["cve_id"] == "CVE-2026-4001"
-    assert rows[0]["source_urls"] == "https://nvd.test/CVE-2026-4001?ref=public"
+    assert rows[0]["编号"] == str(included.id)
+    assert rows[0]["CVE 编号"] == "CVE-2026-4001"
+    assert rows[0]["数据源链接"] == "https://nvd.test/CVE-2026-4001?ref=public"
     assert "secret" not in response.text.lower()
 
 
@@ -249,7 +253,7 @@ async def test_single_intelligence_markdown_export_includes_sources_and_alerts_s
     assert response.headers["content-type"].startswith("text/markdown")
     assert "# CVE-2026-4001 affects T-Box firmware" in response.text
     assert "https://nvd.test/CVE-2026-4001?ref=public" in response.text
-    assert "Related Alerts" in response.text
+    assert "关联告警" in response.text
     assert "secret" not in response.text.lower()
 
 
@@ -275,9 +279,9 @@ async def test_alert_csv_export_honors_filters_and_redacts_notes():
     assert response.status_code == 200
     rows = csv_rows(response.text)
     assert len(rows) == 1
-    assert rows[0]["id"] == str(open_alert.id)
-    assert rows[0]["notes"] == ""
-    assert rows[0]["intelligence_title"] == entry.title
+    assert rows[0]["编号"] == str(open_alert.id)
+    assert rows[0]["备注"] == ""
+    assert rows[0]["情报标题"] == entry.title
     assert "secret" not in response.text.lower()
 
 
@@ -317,7 +321,7 @@ async def test_summary_pdf_export_returns_pdf_without_sensitive_text():
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/pdf"
     assert response.content.startswith(b"%PDF-1.4")
-    assert b"SentinelDrive Security Summary" in response.content
+    assert _pdf_hex_text("SentinelDrive 安全摘要") in response.content
     assert b"secret" not in response.content.lower()
 
 

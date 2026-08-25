@@ -77,23 +77,23 @@ async def export_intelligence_csv(
     )
     entries = _intelligence_entries(session, params, limit)
     headers = [
-        "id",
-        "title",
-        "summary",
-        "intelligence_type",
-        "cve_id",
-        "severity",
-        "risk_level",
-        "risk_score",
-        "status",
-        "affected_vendor",
-        "affected_product",
-        "vehicle_component",
-        "attack_surface",
-        "source_names",
-        "source_urls",
-        "first_seen_at",
-        "last_seen_at",
+        "编号",
+        "标题",
+        "摘要",
+        "情报类型",
+        "CVE 编号",
+        "严重度",
+        "风险等级",
+        "风险评分",
+        "状态",
+        "受影响厂商",
+        "受影响产品",
+        "车辆组件",
+        "攻击面",
+        "数据源名称",
+        "数据源链接",
+        "首次发现时间",
+        "最近更新时间",
     ]
     return _csv_response(
         "sentineldrive-intelligence.csv",
@@ -145,17 +145,17 @@ async def export_alerts_csv(
     )
     alerts = _alert_entries(session, params, limit)
     headers = [
-        "id",
-        "title",
-        "threat_intelligence_id",
-        "triggering_rule",
-        "risk_level",
-        "status",
-        "triggered_at",
-        "notes",
-        "intelligence_title",
-        "cve_id",
-        "source_names",
+        "编号",
+        "标题",
+        "关联情报编号",
+        "触发规则",
+        "风险等级",
+        "状态",
+        "触发时间",
+        "备注",
+        "情报标题",
+        "CVE 编号",
+        "数据源名称",
     ]
     return _csv_response("sentineldrive-alerts.csv", headers, [_alert_csv_row(alert) for alert in alerts])
 
@@ -193,23 +193,23 @@ def _alert_entries(session: Session, params: AlertSearchParams, limit: int) -> l
 
 def _intelligence_csv_row(entry: ThreatIntelligence) -> dict[str, Any]:
     return {
-        "id": str(entry.id),
-        "title": _safe_text(entry.title),
-        "summary": _safe_text(entry.summary),
-        "intelligence_type": _enum_value(entry.intelligence_type),
-        "cve_id": entry.cve_id,
-        "severity": _enum_value(entry.severity),
-        "risk_level": _enum_value(entry.risk_level),
-        "risk_score": _number(entry.risk_score),
-        "status": entry.status,
-        "affected_vendor": _safe_text(entry.affected_vendor),
-        "affected_product": _safe_text(entry.affected_product),
-        "vehicle_component": _enum_value(entry.vehicle_component),
-        "attack_surface": _enum_value(entry.attack_surface),
-        "source_names": _join(entry.source_names or []),
-        "source_urls": _join([clean_url for url in (entry.source_urls or []) if (clean_url := safe_url(url))]),
-        "first_seen_at": _iso(entry.first_seen_at),
-        "last_seen_at": _iso(entry.last_seen_at),
+        "编号": str(entry.id),
+        "标题": _safe_text(entry.title),
+        "摘要": _safe_text(entry.summary),
+        "情报类型": _enum_value(entry.intelligence_type),
+        "CVE 编号": entry.cve_id,
+        "严重度": _enum_value(entry.severity),
+        "风险等级": _enum_value(entry.risk_level),
+        "风险评分": _number(entry.risk_score),
+        "状态": entry.status,
+        "受影响厂商": _safe_text(entry.affected_vendor),
+        "受影响产品": _safe_text(entry.affected_product),
+        "车辆组件": _enum_value(entry.vehicle_component),
+        "攻击面": _enum_value(entry.attack_surface),
+        "数据源名称": _join(entry.source_names or []),
+        "数据源链接": _join([clean_url for url in (entry.source_urls or []) if (clean_url := safe_url(url))]),
+        "首次发现时间": _iso(entry.first_seen_at),
+        "最近更新时间": _iso(entry.last_seen_at),
     }
 
 
@@ -217,52 +217,52 @@ def _alert_csv_row(alert: Alert) -> dict[str, Any]:
     detail = _alert_detail_response(alert)
     intelligence = detail.intelligence
     return {
-        "id": str(alert.id),
-        "title": _safe_text(alert.title),
-        "threat_intelligence_id": str(alert.threat_intelligence_id),
-        "triggering_rule": alert.triggering_rule,
-        "risk_level": _enum_value(alert.risk_level),
-        "status": _enum_value(alert.status),
-        "triggered_at": _iso(alert.triggered_at),
-        "notes": _safe_text(alert.notes),
-        "intelligence_title": _safe_text(intelligence.title) if intelligence else None,
-        "cve_id": intelligence.cve_id if intelligence else None,
-        "source_names": _join(intelligence.source_names) if intelligence else None,
+        "编号": str(alert.id),
+        "标题": _safe_text(alert.title),
+        "关联情报编号": str(alert.threat_intelligence_id),
+        "触发规则": alert.triggering_rule,
+        "风险等级": _enum_value(alert.risk_level),
+        "状态": _enum_value(alert.status),
+        "触发时间": _iso(alert.triggered_at),
+        "备注": _safe_text(alert.notes),
+        "情报标题": _safe_text(intelligence.title) if intelligence else None,
+        "CVE 编号": intelligence.cve_id if intelligence else None,
+        "数据源名称": _join(intelligence.source_names) if intelligence else None,
     }
 
 
 def _intelligence_markdown(detail: dict[str, Any]) -> str:
     lines = [
-        f"# {_safe_text(detail.get('title')) or 'Intelligence'}",
+        f"# {_safe_text(detail.get('title')) or '情报条目'}",
         "",
-        f"- ID: {detail.get('id')}",
-        f"- Type: {detail.get('intelligence_type')}",
-        f"- Status: {detail.get('status')}",
-        f"- CVE: {detail.get('cve_id') or '-'}",
-        f"- Severity: {detail.get('severity')}",
-        f"- Risk: {detail.get('risk_level')} ({detail.get('risk_score') or '-'})",
-        f"- Vendor: {_safe_text(detail.get('affected_vendor')) or '-'}",
-        f"- Product: {_safe_text(detail.get('affected_product')) or '-'}",
+        f"- 编号：{detail.get('id')}",
+        f"- 类型：{detail.get('intelligence_type')}",
+        f"- 状态：{detail.get('status')}",
+        f"- CVE：{detail.get('cve_id') or '-'}",
+        f"- 严重度：{detail.get('severity')}",
+        f"- 风险：{detail.get('risk_level')}（{detail.get('risk_score') or '-'}）",
+        f"- 厂商：{_safe_text(detail.get('affected_vendor')) or '-'}",
+        f"- 产品：{_safe_text(detail.get('affected_product')) or '-'}",
         "",
-        "## Summary",
+        "## 摘要",
         "",
         _safe_text(detail.get("summary")) or "-",
         "",
-        "## Sources",
+        "## 数据源",
         "",
     ]
     sources = detail.get("sources") or []
     if sources:
         for source in sources:
-            source_name = _safe_text(source.get("source_name")) or "source"
+            source_name = _safe_text(source.get("source_name")) or "数据源"
             source_url = safe_url(source.get("source_url")) or ""
             external_id = _safe_text(source.get("external_id"))
             suffix = f" ({external_id})" if external_id else ""
             lines.append(f"- {source_name}: {source_url}{suffix}")
     else:
         for source_name, source_url in zip(detail.get("source_names") or [], detail.get("source_urls") or []):
-            lines.append(f"- {_safe_text(source_name) or 'source'}: {safe_url(source_url) or ''}")
-    lines.extend(["", "## Related Alerts", ""])
+            lines.append(f"- {_safe_text(source_name) or '数据源'}: {safe_url(source_url) or ''}")
+    lines.extend(["", "## 关联告警", ""])
     alerts = detail.get("related_alerts") or []
     if alerts:
         for alert in alerts:
@@ -270,7 +270,7 @@ def _intelligence_markdown(detail: dict[str, Any]) -> str:
                 f"- {_safe_text(alert.get('title')) or alert.get('id')}: {alert.get('risk_level')} / {alert.get('status')}"
             )
     else:
-        lines.append("- None")
+        lines.append("- 暂无")
     lines.append("")
     return "\n".join(lines)
 
@@ -279,41 +279,45 @@ def _summary_pdf(intelligence: list[ThreatIntelligence], alerts: list[Alert]) ->
     high_risk = sum(1 for entry in intelligence if _enum_value(entry.risk_level) in {"high", "critical"})
     open_alerts = sum(1 for alert in alerts if _enum_value(alert.status) == "open")
     lines = [
-        "SentinelDrive Security Summary",
-        f"Generated at: {datetime.utcnow().isoformat(timespec='seconds')}Z",
-        f"Intelligence rows included: {len(intelligence)}",
-        f"High or critical intelligence: {high_risk}",
-        f"Alerts included: {len(alerts)}",
-        f"Open alerts: {open_alerts}",
+        "SentinelDrive 安全摘要",
+        f"生成时间：{datetime.utcnow().isoformat(timespec='seconds')}Z",
+        f"收录情报条数：{len(intelligence)}",
+        f"高风险或严重情报：{high_risk}",
+        f"收录告警数：{len(alerts)}",
+        f"未关闭告警：{open_alerts}",
         "",
-        "Top Intelligence",
+        "重点情报",
     ]
     for entry in intelligence[:8]:
         lines.append(
-            f"- {entry.cve_id or 'no-cve'} | {_enum_value(entry.risk_level)} | {_safe_text(entry.title) or entry.id}"
+            f"- {entry.cve_id or '无 CVE'} | {_enum_value(entry.risk_level)} | {_safe_text(entry.title) or entry.id}"
         )
-    lines.extend(["", "Top Alerts"])
+    lines.extend(["", "重点告警"])
     for alert in alerts[:8]:
         lines.append(f"- {_enum_value(alert.risk_level)} | {_enum_value(alert.status)} | {_safe_text(alert.title) or alert.id}")
     return _build_simple_pdf(lines)
 
 
 def _build_simple_pdf(lines: list[str]) -> bytes:
+    # 文本以 UTF-16BE hex 字符串写入，字体引用 PDF 阅读器内置的 STSong-Light
+    # CJK 字体，避免 latin-1 编码把中文内容替换成问号。
     content_lines: list[str] = []
     y = 744
     for index, line in enumerate(_wrap_pdf_lines(lines)):
         size = 16 if index == 0 else 10
-        content_lines.append(f"BT /F1 {size} Tf 72 {y} Td ({_pdf_escape(line)}) Tj ET")
+        hex_text = _pdf_hex(line)
+        content_lines.append(f"BT /F1 {size} Tf 72 {y} Td <{hex_text}> Tj ET")
         y -= 18 if index == 0 else 14
         if y < 72:
             break
-    stream = "\n".join(content_lines).encode("latin-1", "replace")
+    stream = "\n".join(content_lines).encode("ascii")
     objects = [
         b"<< /Type /Catalog /Pages 2 0 R >>",
         b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
         b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
-        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        b"<< /Type /Font /Subtype /Type0 /BaseFont /STSong-Light /Encoding /UniGB-UCS2-H /DescendantFonts [6 0 R] >>",
         b"<< /Length " + str(len(stream)).encode("ascii") + b" >>\nstream\n" + stream + b"\nendstream",
+        b"<< /Type /Font /Subtype /CIDFontType0 /BaseFont /STSong-Light /CIDSystemInfo << /Registry (Adobe) /Ordering (GB1) /Supplement 5 >> /DW 1000 >>",
     ]
     pdf = io.BytesIO()
     pdf.write(b"%PDF-1.4\n")
@@ -338,7 +342,7 @@ def _wrap_pdf_lines(lines: list[str]) -> list[str]:
         if not line:
             wrapped.append("")
             continue
-        wrapped.extend(textwrap.wrap(_pdf_text(line), width=92) or [""])
+        wrapped.extend(textwrap.wrap(line, width=46, break_on_hyphens=False) or [""])
     return wrapped
 
 
@@ -391,9 +395,5 @@ def _number(value: Any) -> float | None:
     return float(value)
 
 
-def _pdf_escape(value: str) -> str:
-    return value.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-
-
-def _pdf_text(value: str) -> str:
-    return value.encode("latin-1", "replace").decode("latin-1")
+def _pdf_hex(value: str) -> str:
+    return value.encode("utf-16-be").hex().upper()
