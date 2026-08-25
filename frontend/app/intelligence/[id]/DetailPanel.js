@@ -8,7 +8,10 @@ import { EmptyDataState, ErrorState, LoadingState } from "../../components/State
 import { Toolbar } from "../../components/WorkbenchShell";
 import {
   attackSurfaceOptions,
+  confidenceLabel,
   dateTimeLabel,
+  exploitStatusLabel,
+  intelligenceStatusOptions,
   intelligenceTypeOptions,
   labelFromOptions,
   numberLabel,
@@ -63,7 +66,7 @@ export function IntelligenceDetailPanel({ itemId }) {
 
       <dl className="detail-grid">
         <Field label="情报类型" value={labelFromOptions(intelligenceTypeOptions, data.intelligence_type)} />
-        <Field label="状态" value={data.status} />
+        <Field label="状态" value={labelFromOptions(intelligenceStatusOptions, data.status)} />
         <Field label="CVE" value={data.cve_id} />
         <Field label="CWE" value={data.cwe_id} />
         <Field label="CVSS" value={[numberLabel(data.cvss_score), data.cvss_vector].filter((value) => value !== "-").join(" / ")} />
@@ -73,8 +76,8 @@ export function IntelligenceDetailPanel({ itemId }) {
         <Field label="版本" value={data.affected_version} />
         <Field label="车辆组件" value={labelFromOptions(vehicleComponentOptions, data.vehicle_component)} />
         <Field label="攻击面" value={labelFromOptions(attackSurfaceOptions, data.attack_surface)} />
-        <Field label="利用状态" value={data.exploit_status} />
-        <Field label="可信度" value={data.confidence} />
+        <Field label="利用状态" value={exploitStatusLabel(data.exploit_status)} />
+        <Field label="可信度" value={confidenceLabel(data.confidence)} />
         <Field label="首次发现" value={dateTimeLabel(data.first_seen_at)} />
         <Field label="最近发现" value={dateTimeLabel(data.last_seen_at)} />
         <Field label="去重键" value={data.dedup_key} />

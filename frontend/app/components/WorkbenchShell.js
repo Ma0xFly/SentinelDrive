@@ -9,7 +9,7 @@ const navigationItems = [
   { href: "/", label: "情报列表" },
   { href: "/alerts", label: "告警" },
   { href: "/sources", label: "来源管理" },
-  { href: "/manual-entry", label: "手工录入" },
+  { href: "/manual-entry", label: "人工录入" },
   { href: "/user", label: "用户基础" }
 ];
 
@@ -55,7 +55,7 @@ export function WorkbenchShell({ active = "/", title, eyebrow, actions, children
 
         <div className="sidebar-footer">
           <span className="status-dot" aria-hidden="true" />
-          <span>接口：{getApiBaseUrl()}</span>
+          <span>API 基址：{getApiBaseUrl()}</span>
         </div>
       </aside>
 

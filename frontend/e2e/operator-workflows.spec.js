@@ -158,7 +158,7 @@ test("login protects the workbench and supports intelligence detail plus export"
 
 test("manual entry validates required fields and submits a clean entry", async ({ page }) => {
   await login(page);
-  await page.getByRole("link", { name: "手工录入" }).click();
+  await page.getByRole("link", { name: "人工录入" }).click();
 
   await page.getByRole("button", { name: "提交条目" }).click();
   await expect(page.getByText("标题至少需要 3 个字符。")).toBeVisible();
@@ -168,7 +168,7 @@ test("manual entry validates required fields and submits a clean entry", async (
   await page.getByPlaceholder("记录影响范围、触发条件和处置线索").fill("Browser workflow validates manual entry submission.");
   await page.getByRole("button", { name: "提交条目" }).click();
 
-  await expect(page.getByText("手工情报已提交。")).toBeVisible();
+  await expect(page.getByText("人工录入条目已提交。")).toBeVisible();
   await expect(page.getByRole("heading", { name: "已录入条目" })).toBeVisible();
   await expect(page.getByText("Mocked supplier advisory")).toBeVisible();
 });

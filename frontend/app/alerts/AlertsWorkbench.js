@@ -5,13 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { alertsApi, exportsApi } from "../../lib/endpoints";
 import { EmptyDataState, ErrorState, LoadingState } from "../components/StateViews";
 import { Toolbar } from "../components/WorkbenchShell";
-import { dateTimeLabel, riskLabel, riskLevelOptions } from "../intelligence/labels";
-
-const statusOptions = [
-  ["open", "未确认"],
-  ["acknowledged", "已确认"],
-  ["closed", "已关闭"]
-];
+import { alertStatusLabel as statusLabel, alertStatusOptions as statusOptions, dateTimeLabel, riskLabel, riskLevelOptions } from "../intelligence/labels";
 
 const sortOptions = [
   ["recent", "最近触发"],
@@ -279,12 +273,4 @@ function Pagination({ page, hasNext, onPage }) {
       <button className="secondary-button" type="button" disabled={!hasNext} onClick={() => onPage(page + 1)}>下一页</button>
     </div>
   );
-}
-
-function statusLabel(value) {
-  return {
-    open: "未确认",
-    acknowledged: "已确认",
-    closed: "已关闭"
-  }[value] || value || "-";
 }

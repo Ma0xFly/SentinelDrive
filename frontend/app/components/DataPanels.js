@@ -5,6 +5,13 @@ import { alertsApi, exportsApi, intelligenceApi, manualEntriesApi, sourcesApi, u
 import { useApiResource } from "../../lib/dataHooks";
 import { useAuth } from "./AuthProvider";
 import { AdminOnly, EmptyDataState, ErrorState, LoadingState } from "./StateViews";
+import {
+  alertStatusLabel,
+  intelligenceStatusLabel,
+  manualCategoryLabel,
+  riskLabel,
+  sourceStatusLabel
+} from "../intelligence/labels";
 
 export function IntelligenceDataPanel() {
   const { data, error, loading, reload } = useApiResource(
@@ -136,13 +143,13 @@ export function ManualEntriesDataPanel() {
   const { data, error, loading, reload } = useApiResource(() => manualEntriesApi.list(), []);
 
   if (loading) {
-    return <LoadingState title="正在加载手工条目" description="读取已录入的人工情报。" />;
+    return <LoadingState title="正在加载人工录入条目" description="读取已录入的人工录入条目。" />;
   }
   if (error) {
     return <ErrorState message={error} onRetry={reload} />;
   }
   if (!data?.length) {
-    return <EmptyDataState title="暂无手工录入" description="尚未提交人工情报记录。" />;
+    return <EmptyDataState title="暂无人工录入" description="尚未提交人工录入记录。" />;
   }
 
   return (
@@ -162,7 +169,7 @@ export function ManualEntriesDataPanel() {
               <td>{item.title}</td>
               <td>{manualCategoryLabel(item.category)}</td>
               <td>{item.source_name}</td>
-              <td>{manualStatusLabel(item.status)}</td>
+              <td>{intelligenceStatusLabel(item.status)}</td>
             </tr>
           ))}
         </tbody>
@@ -278,50 +285,4 @@ function formatDate(value) {
     return "暂无记录";
   }
   return new Date(value).toLocaleString("zh-CN", { hour12: false });
-}
-
-function riskLabel(value) {
-  return {
-    critical: "严重",
-    high: "高",
-    medium: "中",
-    low: "低",
-    info: "信息"
-  }[value] || value || "未知";
-}
-
-function alertStatusLabel(value) {
-  return {
-    open: "未确认",
-    acknowledged: "已确认",
-    in_progress: "处理中",
-    closed: "已关闭"
-  }[value] || value || "未知";
-}
-
-function sourceStatusLabel(value) {
-  return {
-    enabled: "启用",
-    disabled: "停用",
-    error: "异常"
-  }[value] || value || "未知";
-}
-
-function manualCategoryLabel(value) {
-  return {
-    vulnerability: "漏洞",
-    advisory: "公告",
-    incident: "事件",
-    exposure: "暴露面",
-    research_lead: "研究线索"
-  }[value] || value || "未知";
-}
-
-function manualStatusLabel(value) {
-  return {
-    active: "有效",
-    under_review: "复核中",
-    resolved: "已解决",
-    dismissed: "已忽略"
-  }[value] || value || "未知";
 }

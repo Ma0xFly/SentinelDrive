@@ -8,6 +8,7 @@ import { Toolbar } from "../components/WorkbenchShell";
 import {
   attackSurfaceOptions,
   dateTimeLabel,
+  intelligenceStatusOptions,
   intelligenceTypeOptions,
   labelFromOptions,
   numberLabel,
@@ -116,7 +117,7 @@ export function IntelligenceWorkbench() {
           <button className="primary-button" type="submit">查询</button>
           <button className="secondary-button" type="button" onClick={resetFilters}>重置</button>
           <button className="secondary-button" type="button" onClick={() => runExport(() => exportsApi.intelligenceCsv(filters))}>导出 CSV</button>
-          <button className="secondary-button" type="button" onClick={() => runExport(() => exportsApi.summaryPdf())}>摘要 PDF</button>
+          <button className="secondary-button" type="button" onClick={() => runExport(() => exportsApi.summaryPdf())}>导出摘要 PDF</button>
         </Toolbar>
       </form>
 
@@ -159,7 +160,7 @@ export function IntelligenceWorkbench() {
                       <span className={`badge badge-risk-${item.risk_level}`}>{riskLabel(item.risk_level)}</span>
                       <div className="cell-subtext">{numberLabel(item.risk_score, " 分")}</div>
                     </td>
-                    <td>{item.status || "-"}</td>
+                    <td>{labelFromOptions(intelligenceStatusOptions, item.status)}</td>
                     <td>{dateTimeLabel(item.last_seen_at)}</td>
                     <td><Link className="text-link" href={`/intelligence/${item.id}`}>查看</Link></td>
                   </tr>

@@ -37,6 +37,62 @@ export const sortOptions = [
   ["severity", "严重度"]
 ];
 
+export const alertStatusOptions = [
+  ["open", "未确认"],
+  ["acknowledged", "已确认"],
+  ["closed", "已关闭"]
+];
+
+export const intelligenceStatusOptions = [
+  ["active", "有效"],
+  ["under_review", "复核中"],
+  ["resolved", "已解决"],
+  ["dismissed", "已忽略"]
+];
+
+export const sourceStatusOptions = [
+  ["enabled", "启用"],
+  ["disabled", "停用"],
+  ["error", "异常"]
+];
+
+export const sourceTypeOptions = [
+  ["api", "API"],
+  ["rss", "RSS"],
+  ["html", "HTML"],
+  ["pdf", "PDF"],
+  ["manual", "手工"],
+  ["vendor", "厂商"]
+];
+
+export const jobStatusOptions = [
+  ["queued", "排队"],
+  ["running", "运行中"],
+  ["success", "成功"],
+  ["failed", "失败"]
+];
+
+export const manualCategoryOptions = [
+  ["vulnerability", "漏洞"],
+  ["advisory", "公告"],
+  ["incident", "事件"],
+  ["exposure", "暴露面"],
+  ["research_lead", "研究线索"]
+];
+
+export const exploitStatusOptions = [
+  ["unknown", "未知"],
+  ["none_known", "未发现利用"],
+  ["proof_of_concept", "PoC"],
+  ["exploited", "已利用"]
+];
+
+export const confidenceOptions = [
+  ["low", "低"],
+  ["medium", "中"],
+  ["high", "高"]
+];
+
 export function labelFromOptions(options, value) {
   return options.find(([key]) => key === value)?.[1] || value || "-";
 }
@@ -53,6 +109,46 @@ export function severityLabel(value) {
     high: "高",
     critical: "严重"
   }[value] || value || "-";
+}
+
+export const severityOptions = [
+  ["unknown", "未知"],
+  ["low", "低"],
+  ["medium", "中"],
+  ["high", "高"],
+  ["critical", "严重"]
+];
+
+export function alertStatusLabel(value) {
+  return labelFromOptions(alertStatusOptions, value);
+}
+
+export function intelligenceStatusLabel(value) {
+  return labelFromOptions(intelligenceStatusOptions, value);
+}
+
+export function sourceStatusLabel(value) {
+  return labelFromOptions(sourceStatusOptions, value);
+}
+
+export function sourceTypeLabel(value) {
+  return labelFromOptions(sourceTypeOptions, value);
+}
+
+export function jobStatusLabel(value) {
+  return labelFromOptions(jobStatusOptions, value);
+}
+
+export function manualCategoryLabel(value) {
+  return labelFromOptions(manualCategoryOptions, value);
+}
+
+export function exploitStatusLabel(value) {
+  return labelFromOptions(exploitStatusOptions, value);
+}
+
+export function confidenceLabel(value) {
+  return labelFromOptions(confidenceOptions, value);
 }
 
 export function dateTimeLabel(value) {

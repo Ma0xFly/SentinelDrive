@@ -4,34 +4,20 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { alertsApi, sourcesApi } from "../../lib/endpoints";
 import { EmptyDataState, ErrorState, LoadingState } from "../components/StateViews";
 import { Toolbar } from "../components/WorkbenchShell";
-import { dateTimeLabel } from "../intelligence/labels";
-
-const sourceStatusOptions = [
-  ["enabled", "启用"],
-  ["disabled", "停用"],
-  ["error", "异常"]
-];
-
-const sourceTypeOptions = [
-  ["api", "API"],
-  ["rss", "RSS"],
-  ["html", "HTML"],
-  ["pdf", "PDF"],
-  ["manual", "手工"],
-  ["vendor", "厂商"]
-];
+import {
+  dateTimeLabel,
+  jobStatusOptions,
+  jobStatusLabel,
+  sourceStatusOptions,
+  sourceStatusLabel,
+  sourceTypeOptions,
+  sourceTypeLabel
+} from "../intelligence/labels";
 
 const sourceSortOptions = [
   ["name", "名称"],
   ["recent", "最近更新"],
   ["failures", "失败优先"]
-];
-
-const jobStatusOptions = [
-  ["queued", "排队"],
-  ["running", "运行中"],
-  ["success", "成功"],
-  ["failed", "失败"]
 ];
 
 const initialFilters = {
@@ -330,7 +316,7 @@ function PipelineControlPanel({
       note: "等待风险评分"
     },
     {
-      label: "打开告警",
+      label: "未关闭告警",
       value: displayCount(firstValue(status, ["open_alert_count", "open_alerts", "active_alert_count", "pending_alert_count"])),
       note: "待运营处理"
     }
@@ -527,7 +513,7 @@ function JobTable({ jobs }) {
             <tr key={job.id}>
               <td>{job.job_name}</td>
               <td>{jobStatusLabel(job.status)}</td>
-              <td>{job.run_status || "-"}</td>
+              <td>{jobStatusLabel(job.run_status)}</td>
               <td>{job.retried ? "是" : "否"}</td>
               <td>{job.skipped ? "是" : "否"}</td>
               <td>{dateTimeLabel(job.finished_at || job.started_at)}</td>
@@ -584,18 +570,6 @@ function Pagination({ page, hasNext, onPage }) {
       <button className="secondary-button" type="button" disabled={!hasNext} onClick={() => onPage(page + 1)}>下一页</button>
     </div>
   );
-}
-
-function sourceStatusLabel(value) {
-  return sourceStatusOptions.find(([key]) => key === value)?.[1] || value || "-";
-}
-
-function sourceTypeLabel(value) {
-  return sourceTypeOptions.find(([key]) => key === value)?.[1] || value || "-";
-}
-
-function jobStatusLabel(value) {
-  return jobStatusOptions.find(([key]) => key === value)?.[1] || value || "-";
 }
 
 function jobSummary(summary) {

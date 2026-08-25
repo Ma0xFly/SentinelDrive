@@ -4,43 +4,20 @@ import { useCallback, useEffect, useState } from "react";
 import { manualEntriesApi } from "../../lib/endpoints";
 import { EmptyDataState, ErrorState, LoadingState } from "../components/StateViews";
 import { Toolbar } from "../components/WorkbenchShell";
-import { attackSurfaceOptions, dateTimeLabel, riskLevelOptions, severityLabel, vehicleComponentOptions } from "../intelligence/labels";
-
-const categoryOptions = [
-  ["vulnerability", "漏洞"],
-  ["advisory", "公告"],
-  ["incident", "事件"],
-  ["exposure", "暴露面"],
-  ["research_lead", "研究线索"]
-];
-
-const severityOptions = [
-  ["unknown", "未知"],
-  ["low", "低"],
-  ["medium", "中"],
-  ["high", "高"],
-  ["critical", "严重"]
-];
-
-const exploitOptions = [
-  ["unknown", "未知"],
-  ["none_known", "未发现利用"],
-  ["proof_of_concept", "PoC"],
-  ["exploited", "已利用"]
-];
-
-const confidenceOptions = [
-  ["low", "低"],
-  ["medium", "中"],
-  ["high", "高"]
-];
-
-const statusOptions = [
-  ["active", "有效"],
-  ["under_review", "复核中"],
-  ["resolved", "已解决"],
-  ["dismissed", "已忽略"]
-];
+import {
+  attackSurfaceOptions,
+  confidenceOptions,
+  dateTimeLabel,
+  exploitStatusOptions as exploitOptions,
+  intelligenceStatusLabel,
+  intelligenceStatusOptions as statusOptions,
+  manualCategoryLabel as categoryLabel,
+  manualCategoryOptions as categoryOptions,
+  riskLevelOptions,
+  severityLabel,
+  severityOptions,
+  vehicleComponentOptions
+} from "../intelligence/labels";
 
 const emptyForm = {
   category: "vulnerability",
@@ -82,7 +59,7 @@ export function ManualEntryWorkbench() {
     try {
       setEntries(await manualEntriesApi.list());
     } catch (requestError) {
-      setError(requestError.message || "手工录入列表加载失败。");
+      setError(requestError.message || "人工录入列表加载失败。");
     } finally {
       setLoading(false);
     }
@@ -145,10 +122,10 @@ export function ManualEntryWorkbench() {
       const payload = formToPayload(form);
       if (editingId) {
         await manualEntriesApi.update(editingId, payload);
-        setSuccess("手工情报已更新。");
+        setSuccess("人工录入条目已更新。");
       } else {
         await manualEntriesApi.create(payload);
-        setSuccess("手工情报已提交。");
+        setSuccess("人工录入条目已提交。");
       }
       resetForm();
       await load();
@@ -201,9 +178,9 @@ export function ManualEntryWorkbench() {
 
       <aside className="split-detail">
         <h3>已录入条目</h3>
-        {loading ? <LoadingState title="正在加载手工条目" /> : null}
+        {loading ? <LoadingState title="正在加载人工录入条目" /> : null}
         {!loading && error ? <ErrorState message={error} onRetry={load} /> : null}
-        {!loading && !error && !entries.length ? <EmptyDataState title="暂无手工录入" description="提交后会显示在这里。" /> : null}
+        {!loading && !error && !entries.length ? <EmptyDataState title="暂无人工录入" description="提交后会显示在这里。" /> : null}
         {!loading && !error && entries.length ? <ManualEntryList entries={entries} onEdit={startEdit} /> : null}
       </aside>
     </div>
@@ -216,7 +193,7 @@ function ManualEntryList({ entries, onEdit }) {
       {entries.map((entry) => (
         <div className="record-item" key={entry.id}>
           <strong>{entry.title}</strong>
-          <span>{categoryLabel(entry.category)} / {severityLabel(entry.severity)} / {entry.status}</span>
+          <span>{categoryLabel(entry.category)} / {severityLabel(entry.severity)} / {intelligenceStatusLabel(entry.status)}</span>
           <span>{entry.source_name} · {dateTimeLabel(entry.updated_at)}</span>
           <button className="text-button" type="button" onClick={() => onEdit(entry)}>编辑</button>
         </div>
@@ -319,6 +296,3 @@ function formToPayload(value) {
   return payload;
 }
 
-function categoryLabel(value) {
-  return categoryOptions.find(([key]) => key === value)?.[1] || value || "-";
-}
