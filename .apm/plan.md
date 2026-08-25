@@ -26,6 +26,7 @@ modified: Planner 创建 Plan，并由中文 APM 上下文重构。
 | 5 | 前端工作台集成 | 5 | Frontend Agent, Backend Agent |
 | 6 | 加固、文档与部署就绪 | 4 | QA Documentation Agent, Platform Agent |
 | 7 | 运维加固与管道自动化 | 4 | Intelligence Pipeline Agent, Backend Agent, Frontend Agent, QA Documentation Agent, Platform Agent |
+| 8 | 前端适配与 AI 情报接入预留 | 4 | Frontend Agent, Backend Agent, Intelligence Pipeline Agent, QA Documentation Agent |
 
 ## Dependency Graph
 
@@ -107,6 +108,18 @@ subgraph S7["Stage 7: 运维加固与管道自动化"]
   T7_2 --> T7_3
 end
 
+subgraph S8["Stage 8: 前端适配与 AI 情报接入预留"]
+  direction LR
+  T8_1["8.1 工作台响应式布局修复<br/><i>Frontend Agent</i>"]
+  T8_2["8.2 外部/AI 情报 Ingest API<br/><i>Backend Agent</i>"]
+  T8_3["8.3 AI 来源规范化接入<br/><i>Intelligence Pipeline Agent</i>"]
+  T8_4["8.4 浏览器验证与接入文档<br/><i>QA Documentation Agent</i>"]
+  T8_2 -.-> T8_3
+  T8_1 -.-> T8_4
+  T8_2 -.-> T8_4
+  T8_3 -.-> T8_4
+end
+
 T1_1 -.-> T1_2
 T1_1 -.-> T1_3
 T1_1 -.-> T1_4
@@ -137,6 +150,8 @@ T6_2 -.-> T6_3
 T6_2 -.-> T7_1
 T6_3 -.-> T7_2
 T6_4 -.-> T7_4
+T7_2 -.-> T8_1
+T7_3 -.-> T8_4
 
 style T1_1 fill:#8ecae6,color:#000
 style T2_4 fill:#8ecae6,color:#000
@@ -169,6 +184,10 @@ style T1_4 fill:#cdb4db,color:#000
 style T6_1 fill:#cdb4db,color:#000
 style T6_3 fill:#cdb4db,color:#000
 style T7_3 fill:#cdb4db,color:#000
+style T8_1 fill:#f4a261,color:#000
+style T8_2 fill:#ffb703,color:#000
+style T8_3 fill:#90be6d,color:#000
+style T8_4 fill:#cdb4db,color:#000
 ```
 
 ---
@@ -622,3 +641,61 @@ style T7_3 fill:#cdb4db,color:#000
 3. 在明确本地环境与备份存在的前提下执行恢复演练。
 4. 运行迁移、readiness、登录或 API smoke check。
 5. 更新运维手册中不准确或不安全的命令。
+
+## Stage 8: 前端适配与 AI 情报接入预留
+
+### Task 8.1: 工作台响应式布局修复 - Frontend Agent
+
+* **目标：** 修复工作台主内容区宽屏利用不足、来源管理右侧详情易被遮挡/挤压的问题，并补充桌面视口布局回归断言。
+* **产出：** 前端布局样式调整（`globals.css`）、桌面视口 Playwright 布局断言，以及前端构建/E2E 验证记录。
+* **验收：** 情报列表、情报详情、来源管理页在 `1366x768`、`1440x900`、`1920x1080` 视口下无整体水平溢出，来源详情面板在视口内；`npm run check`（生产构建）与 `npm run e2e` 通过；`git diff --check` 通过；不更改 API 契约、认证行为或业务功能。
+* **执行指导：** 遵循 Spec 的“前端工作台”。布局面向运营、信息密集，不引入营销化设计；不实现 AI ingest、知识图谱、工单、多租户 RBAC 等范围外能力。
+* **依赖：** 无
+
+1. 放宽主内容区最大宽度，避免情报列表与详情长期挤在过窄中间列。
+2. 将 split 工作台右侧详情列改为弹性宽度，并在窄视口自动堆叠。
+3. 为表格、详情块、来源行、元数据网格、长标题/摘要/错误信息添加受控换行与横向滚动策略。
+4. 补充覆盖三档桌面视口的 Playwright 布局测试，检查关键区域无整体水平溢出、来源详情未被裁切。
+5. 运行前端生产构建与 E2E，并修复布局或类型问题。
+
+### Task 8.2: 外部/AI 情报 Ingest API - Backend Agent
+
+* **目标：** 提供认证保护的外部/AI 情报写入端点，使外部或 AI 收集器整理后的情报进入现有 raw intelligence、normalized intelligence 与 source attribution 流程。
+* **产出：** ingest request/response schema、脱敏与幂等处理 service、`POST /intelligence/ingest` 路由、聚焦测试。
+* **验收：** 端点要求 bearer 认证，未认证返回 401；CVE 优先去重，无 CVE 时按 dedup key / 外部 ID / 来源归因等稳定信号去重，重复提交返回并更新既有核心记录而不创建重复核心情报；明显凭证文本被拒绝、raw payload 与 URL 中的敏感字段被脱敏；审计事件不记录 raw payload；测试通过。
+* **执行指导：** 遵循 Spec 的“产品范围”“数据生命周期”和“安全与合规”。这为后续 AI 情报接入留出通道，但不实现 AI 自动分析、自定义评分规则、工单流或外部通知。
+* **依赖：** 无
+
+1. 定义 ingest 请求 schema，覆盖来源名称/URL、平台、标题、摘要、外部 ID、CVE/CNVD/厂商公告 ID、受影响产品/组件/攻击面、严重性、外部分数、时间与标签等字段。
+2. 实现集中 service，处理 URL 规范化、内容哈希、幂等去重、轻量 raw payload 脱敏保存、normalized intelligence 创建/合并与 source attribution upsert。
+3. 实现认证保护的路由，字段缺失或格式错误返回既有 FastAPI 校验错误风格。
+4. 为写入动作写审计日志，metadata 只记录来源、去重结果、dedup key 与安全来源信息。
+5. 编写认证、校验、去重、脱敏与审计测试。
+
+### Task 8.3: AI 来源规范化接入 - Intelligence Pipeline Agent
+
+* **目标：** 让 worker 的采集-规范化-去重-评分管道识别并处理外部/AI 写入的 raw 情报，使 ingest 与 worker 管道在去重键、来源归因和评分上保持一致与幂等。
+* **产出：** worker 侧外部/AI 来源的 normalizer 或显式 source-type 注册、评分/告警路径接入、聚焦验证。
+* **验收：** 外部/AI raw 记录可被 worker 规范化；与 ingest 服务的 CVE/URL/title/hash 去重键保持一致；重复运行幂等且不产生重复核心记录；worker 测试通过。
+* **执行指导：** 保持 Source Connector 边界。采集仍属 Connector 的源特定逻辑；规范化、去重和评分保持可复用。不新增 AI 分析、自定义评分规则或工单流；用户建议的“AI 采集作为外部写入源”“导入审计记录”作为本任务接入约束处理。
+* **依赖：** **Task 8.2 by Backend Agent**
+
+1. 识别 worker 管道当前对外部/AI 来源（`source_type=api`、`entry_origin=external_ingest`）的规范化现状与缺口。
+2. 注册显式的 external/ai 来源类型或 normalizer，复用既有分层去重键（CVE、URL、标题+来源、内容哈希、外部 ID）。
+3. 确保 worker 再处理与 ingest 服务使用一致的去重与来源归因语义。
+4. 将评分与告警评估路径接入外部/AI 来源的规范化结果。
+5. 编写幂等、去重一致性和错误隔离测试。
+
+### Task 8.4: 浏览器验证与接入文档 - QA Documentation Agent
+
+* **目标：** 为外部/AI 情报接入补上浏览器级验证与操作者/开发者接入文档。
+* **产出：** ingest 工作流的 E2E 验证、外部/AI 情报接入文档、命令文档与 QA 总结。
+* **验收：** 浏览器自动化覆盖登录、情报浏览、ingest 接入相关流程；测试使用确定性本地数据、默认不依赖真实外部数据源；文档命令、服务名与已实现实现一致；无明显残留占位章节。
+* **执行指导：** 遵循 Spec 的“文档要求”和“前端工作台”。用户建议的“采集健康度视图”若属已有数据源状态/管道页面可顺带核验，但不新增大面积范围。保持测试套件小而高价值。
+* **依赖：** **Task 8.1 by Frontend Agent**, **Task 8.2 by Backend Agent**, **Task 8.3 by Intelligence Pipeline Agent**
+
+1. 建立或复用现有 Playwright browser automation 运行方式。
+2. 准备确定性的本地 mocked API 数据，覆盖登录、情报浏览与 ingest 接入相关交互。
+3. 编写外部/AI 情报接入文档，说明如何通过 ingest 端点写入情报以及 worker 规范化/评分行为。
+4. 更新命令文档与测试说明，使其与已实现服务名、环境变量和脚本一致。
+5. 记录 QA 结果与残余风险。
