@@ -1,79 +1,90 @@
-# APM 1.0.1 - Task Logging Guide
+# APM 1.0.1 - 任务日志指南
 
-## 0. 纯中文本土化执行规范
+## 1. 概述
 
-本文件是 APM 中文本土化版本。执行时必须遵守以下规则：
+**阅读本指南的 Agent：** Worker
 
-- 本文件的中文说明就是实际执行口径，不需要再参考英文原文。
-- 面向用户的解释、提问、分析、总结、风险说明、审查意见和下一步指令必须使用中文。
-- APM 项目产物正文必须使用中文，包括 `.apm/spec.md`、`.apm/plan.md`、`AGENTS.md` 中的 APM 规则、Task Prompt、Task Log、Task Report、Handoff Log、Recovery Summary、Stage Summary、Memory Notes 和 Working Notes。
-- 可以保留英文的内容仅限命令、路径、代码标识、YAML 字段、Markdown 结构标题、状态值、Agent 名称、Task ID、mermaid 语法、协议字段、库名、框架名和行业通用缩写。
-- 不得为了节省上下文而删除流程约束。必须保留审批门槛、上下文边界、依赖判定、验证标准、日志格式、Message Bus、Handoff、Recovery、Tracker 和 Memory 相关规则。
-- 如果发现规则缺口，用中文补足；不要回退到英文说明。
+本指南定义你如何记录任务结果和报告结果。Task Log 用结构化 Markdown 文件捕获任务级上下文，使 Manager 无需解析原始代码或聊天历史就能追踪进度和做审查决策。
 
----
-## 1. 适用角色
+### 1.1 产物
 
-**Reading Agent:** Worker
-
-本指南定义 Worker 如何写 Task Log 和 Task Report。Task Log 保存任务级事实，Task Report 是给 Manager 的简短交付消息。
+- *Task Log：* 位于 `.apm/memory/stage-<NN>/task-<NN>-<MM>.log.md` 的结构化日志，捕获结果、验证、交付物和标志。
+- *Task Report：* 写入 Report Bus 供 Manager 处理的简明摘要。
 
 ---
 
-## 0. 中文日志和报告强制规则
+## 2. 执行规范
 
-Worker 写入的 Task Log 和 Task Report 必须使用中文正文。
+### 2.1 标志评估标准
 
-- `## Summary`、`## Details`、`## Output`、`## Validation`、`## Issues`、`## Compatibility Concerns`、`## Important Findings` 等结构标题可以保留英文，以保持 APM 格式兼容。
-- 标题下面的结果摘要、执行细节、文件变更说明、验证结果、问题、兼容性风险和重要发现必须使用中文。
-- 如果验证命令输出、错误消息或代码片段是英文，可以原样引用；但必须在旁边用中文说明它代表什么、是否通过、还有什么风险。
-- Task Report 的正文也必须中文，不能只写英文状态句。
+YAML frontmatter 里的布尔标志表示需要 Manager 注意的条件。基于执行中你观察到的、相对 Task Prompt 和工作上下文的情况来设置标志。
 
----
+**`important_findings`：** 当执行揭示了 Task Prompt 之外、看似与项目相关的信息；你发现了 Task Prompt 未考虑的依赖、风险或约束；或某事暗示其他任务或 agent 可能受影响时，设为 `true`。
 
-## 2. 状态和标记
+**`compatibility_issues`：** 当你的产出与你触及的现有代码、模式或约定冲突；你发现了可能影响系统其他部分的整合顾虑；或你的工作带来 breaking change 或迁移需求时，设为 `true`。
 
-### 2.1 Outcome
+**默认：** 不确定某发现是否值得设标志时，设为 `true`。漏报比误报更伤协调。
 
-`status` 只能使用：
+### 2.2 结果标准
 
-- `Success`：目标达成，所有验证通过；
-- `Partial`：有进展但未完成，需要指导；
-- `Failed`：目标未达成，已尝试但无法解决。
+状态反映目标是否达成。基于最终状态选择，而非付出多少努力。
 
-不要因为“做了很多努力”就标记 `Success`。状态只看结果。
+- *Success:* 目标达成，所有验证通过。
+- *Partial:* 有进展但不完整；你需要指导才能继续。
+- *Failed:* 目标未达成；你尝试了但无法解决。
 
-`Success` 必须同时满足：Objective 达成、Output 完整、所有自主 Validation 已执行并通过、需要用户参与的验收点已明确暂停或已获得反馈、没有未解释的阻塞。只完成部分交付物、测试未跑、验证不完整、或关键风险未解决时，不能标记 `Success`。
+以下情况用 Partial：验证含糊、出现了可能影响其他任务的重要发现、迭代停滞且失败反复、或方案不确定性取决于你范围之外的因素。验证失败但原因清晰且可修、无需 Manager 知晓、且正在取得进展时，继续迭代（先不记日志）。
 
-### 2.2 Flags
+### 2.3 详细程度标准
 
-`important_findings`：
+Task Log 服务于 Manager 的协调需求，而非存档文档。问：这个细节能帮 Manager 理解完成了什么吗？会影响 Manager 的下一次审查决策吗？直接读被引用的产物能找到它吗？
 
-- 发现 Task Prompt 未覆盖的重要事实；
-- 发现可能影响其他 Tasks 或 Workers 的风险；
-- 发现依赖、约束、用户纠正或系统行为差异。
-
-`compatibility_issues`：
-
-- 输出与现有代码、接口、约定、依赖或运行环境冲突；
-- 引入 breaking change 或迁移要求；
-- 发现集成风险。
-
-不确定时设为 `true`。误报比漏报更容易处理。
-
-flags 不是失败标记，而是 Manager 注意力路由。`important_findings: true` 表示可能需要更新 Spec、Plan、Rules 或影响后续任务；`compatibility_issues: true` 表示可能需要集成判断、迁移处理或返工。
+**默认：** 相比冗长的内联内容，更倾向简洁但全面的摘要加产物引用。按路径引用产物，而非包含大段代码块。只对新颖、复杂或关键逻辑包含代码片段（20 行以内）。对错误消息，包含相关堆栈跟踪或诊断细节。
 
 ---
 
-## 3. Task Log
+## 3. 任务日志流程
 
-位置由 Task Prompt 的 `log_path` 指定，通常为：
+任务完成后两个顺序步骤：写 Task Log，然后经 bus 交付 Task Report。按 `.codex/apm-guides/task-execution.md` 第 3.6 节任务完成之后执行。
 
-```text
-.apm/memory/stage-<NN>/task-<NN>-<MM>.log.md
-```
+### 3.1 Task Log 流程
 
-YAML frontmatter：
+任务执行后，在 Task Prompt 提供的路径（`log_path`）填入 Task Log。
+
+执行以下动作：
+
+1. 从聊天中已呈现的完成评估（按 `.codex/apm-guides/task-execution.md` 第 3.6 节任务完成）确定 Task Log 要捕获什么。
+2. 完成 YAML frontmatter 字段：
+   - 按第 2.2 节结果标准设 `status`。
+   - 按第 2.1 节标志评估标准设 `important_findings` 和 `compatibility_issues`。
+   - 从 Task Prompt 取 `stage`、`task`、`title` 和 `agent`。
+3. 按第 4.1 节 Task Log 格式完成 Markdown 正文章节。始终包含：Summary、Details、Output、Validation、Issues。仅当对应标志为 `true` 时包含条件章节（Compatibility Concerns、Important Findings）。
+4. 把 Task Log 写到 `log_path`。
+
+### 3.2 Task Report 交付
+
+执行以下动作：
+
+1. 清空 incoming Task Bus：通过终端截断 `.apm/bus/<agent-slug>/task.md`（如 `truncate -s 0` 或 shell 重定向）。
+2. 读 Report Bus，然后写入 Task Report：`.apm/bus/<agent-slug>/report.md`。报告是简明摘要——关键结果、状态、日志路径和任何标志。细节放 Task Log。
+3. 按 `.agents/skills/apm-communication/SKILL.md` 第 2.1 节直接沟通，指引用户把报告交付给 Manager——给 `/apm-5-check-reports <agent-id>` 做定向检索，也给 `/apm-5-check-reports` 作为通用命令，因为多个 Worker 可能并发完成。
+
+批处理执行时，完成所有任务（或因失败停止）后，按第 4.3 节批处理报告格式写一份批处理报告。
+
+---
+
+## 4. 结构规范
+
+### 4.1 Task Log 格式
+
+**位置：** `.apm/memory/stage-<NN>/task-<NN>-<MM>.log.md`
+
+**命名约定：**
+
+- `<NN>`：Stage 编号，零填充（如 01、02）。
+- `<MM>`：Stage 内任务编号，零填充（如 01、02）。
+
+**YAML Frontmatter Schema:**
 
 ```yaml
 ---
@@ -87,62 +98,55 @@ compatibility_issues: true | false
 ---
 ```
 
-正文模板：
+**字段说明：**
+
+- `stage`：Task Prompt 中的 Stage 编号。
+- `task`：Task Prompt 中的任务编号。
+- `title`：Task Prompt 中的任务标题。
+- `agent`：你的 agent 标识。
+- `status`：按第 2.2 节结果标准的任务结果。`Success`、`Partial` 或 `Failed`。
+- `important_findings`：发现是否对当前任务范围之外有影响（按第 2.1 节）。
+- `compatibility_issues`：产出是否与现有系统冲突（按第 2.1 节）。
+
+**Markdown 正文模板：**
 
 ```markdown
 # Task <N>.<M> - <Title>
 
 ## Summary
-
-用 1-2 句话说明主要结果。
+[1-2 sentences describing main outcome]
 
 ## Details
-
-说明完成的工作、关键决策、执行步骤和使用的 subagent（如有）。
+[Work performed, decisions made, steps taken in logical order. Note subagent usage when applicable.]
 
 ## Output
-
-- 新增或修改的文件路径
-- 配置变化
-- 交付物
-- 必要代码片段（尽量不超过 20 行）
+- File paths for created/modified files
+- Code snippets (if necessary, ≤20 lines)
+- Configuration changes
+- Results or deliverables
 
 ## Validation
-
-列出执行的测试、构建、检查命令和结果。
+[Description of validation performed and result]
 
 ## Issues
-
-列出阻塞、错误或未解决问题；没有则写 `None`。
+[Specific blockers or errors encountered, or "None"]
 
 ## Compatibility Concerns
-
-仅当 `compatibility_issues: true` 时包含。
+[Only include if compatibility_issues: true]
+[Description of compatibility issues identified]
 
 ## Important Findings
-
-仅当 `important_findings: true` 时包含。
+[Only include if important_findings: true]
+[Project-relevant discoveries that Manager must know]
 ```
 
-Task Log 的正文要让 Manager 不读完整聊天记录也能判断任务是否可接受。Validation 中必须写清楚命令、结果、失败修复过程和未执行项原因。Output 中必须列出关键文件路径和交付物，不要只写“已完成”。
+### 4.2 Task Report 格式
 
----
+Task Report 是写入 Report Bus 供 Manager 处理的简明摘要。细节放 Task Log——报告提供足够信息让 Manager 评估结果并定位日志。
 
-## 4. Task Report
+**位置：** `.apm/bus/<agent-slug>/report.md`
 
-写入：
-
-```text
-.apm/bus/<agent-slug>/report.md
-```
-
-写入前先清空 incoming Task Bus：
-
-```text
-.apm/bus/<agent-slug>/task.md
-```
-
-YAML frontmatter：
+**YAML Frontmatter Schema:**
 
 ```yaml
 ---
@@ -156,29 +160,27 @@ compatibility_issues: true | false
 ---
 ```
 
-正文用 1-2 句话总结结果，并引用 Task Log 路径。详细内容放 Task Log，不要塞进 Report。
+**字段说明：**
 
-Task Report 是触发 Manager 审查的信号，不是完整复盘。Report 必须准确反映 `status` 和 flags，不能为了简短省略 `important_findings` 或 `compatibility_issues`。
+- `stage`：Task Prompt 中的 Stage 编号。
+- `task`：Task Prompt 中的任务编号。
+- `agent`：你的 agent 标识。
+- `status`：按第 2.2 节结果标准的任务结果。
+- `log_path`：本任务 Task Log 的路径。
+- `important_findings`：与 Task Log 相同的值。
+- `compatibility_issues`：与 Task Log 相同的值。
 
-完成后提示用户回到 Manager 会话运行：
+**Markdown 正文：** 1-2 句话总结结果。细节引用 Task Log。
 
-```text
-/apm-5-check-reports <agent-id>
-```
+批处理报告改用第 4.3 节批处理报告格式。
 
-Codex CLI 使用：
+### 4.3 批处理报告格式
 
-```text
-$apm-5-check-reports <agent-id>
-```
+完成一批任务（或因失败提前停止）时，Report Bus 文件用此结构。
 
----
+**位置：** `.apm/bus/<agent-slug>/report.md`
 
-## 5. Batch Report
-
-Batch report 写入同一个 Report Bus。
-
-YAML frontmatter：
+**YAML Frontmatter Schema:**
 
 ```yaml
 ---
@@ -199,23 +201,56 @@ tasks:
 ---
 ```
 
-正文包含：
+**字段说明：**
+
+- `batch`：批处理报告恒为 `true`。
+- `batch_size`：批内任务总数。
+- `completed`：已执行的任务（不含未开始）。
+- `stopped_early`：批是否在完成所有任务前停止。
+- `tasks[].stage`：Stage 编号。
+- `tasks[].task`：Stage 内任务编号。
+- `tasks[].status`：`Success`、`Partial`、`Failed`，未执行任务为 `"Not started"`。
+
+**Markdown 正文模板：**
 
 ```markdown
 # Batch Report
 
 ## Summary
+[Brief overview: X of Y Tasks completed, stopped early if applicable]
 
 ## Task Outcomes
 
 ### <Title>
-
-**Status:** Success | Partial | Failed
+**Status:** [Success | Partial | Failed]
 **Task Log:** `<log_path>`
+[1-2 sentence summary of outcome]
+
+...
+
+## Batch Notes
+[Any cross-cutting observations, patterns, or issues affecting multiple Tasks]
 ```
 
-Batch 中每个 Task 都必须有独立 Task Log。某个 Task 失败导致 batch 提前停止时，未开始任务必须标记为 `"Not started"`，不要伪造成 Failed。
+批因 Failed 任务提前停止时，指明是哪个任务触发停止，把剩余任务列为「Not started (batch stopped)」。
 
 ---
 
-**Guide 结束**
+## 5. 内容指南
+
+### 5.1 好日志 vs 差日志
+
+- *Summary:* 「改了些东西、修了些问题」→「实现了 POST /api/users 并带校验。所有测试通过。」
+- *Details:* 「我做了这个端点，有些问题」→「加了注册路由，用 express-validator 做邮箱/密码校验」
+- *Output:* 「改了几个文件」→「修改：`routes/users.js`、`server.js`」
+- *Validation:* 「现在能用了」→「测试套件：5/5 通过。手动测试确认预期响应。」
+
+### 5.2 常见错误
+
+- *忘记条件章节：* 标志为 `true` 时，必须包含对应章节（Compatibility Concerns、Important Findings）。
+- *缺少产物引用：* 产出交付物时，在 Output 节列出文件路径。
+- *推迟批处理日志：* 批处理执行时，完成每个任务后立刻写 Task Log——开始下一个之前。把全部日志推迟到批末尾，若中途发生自动压缩，有上下文丢失风险。
+
+---
+
+**指南结束**

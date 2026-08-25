@@ -1,169 +1,131 @@
-# APM 1.0.1 - Task Execution Guide
+# APM 1.0.1 - 任务执行指南
 
-## 0. 纯中文本土化执行规范
+## 1. 概述
 
-本文件是 APM 中文本土化版本。执行时必须遵守以下规则：
+**阅读本指南的 Agent：** Worker
 
-- 本文件的中文说明就是实际执行口径，不需要再参考英文原文。
-- 面向用户的解释、提问、分析、总结、风险说明、审查意见和下一步指令必须使用中文。
-- APM 项目产物正文必须使用中文，包括 `.apm/spec.md`、`.apm/plan.md`、`AGENTS.md` 中的 APM 规则、Task Prompt、Task Log、Task Report、Handoff Log、Recovery Summary、Stage Summary、Memory Notes 和 Working Notes。
-- 可以保留英文的内容仅限命令、路径、代码标识、YAML 字段、Markdown 结构标题、状态值、Agent 名称、Task ID、mermaid 语法、协议字段、库名、框架名和行业通用缩写。
-- 不得为了节省上下文而删除流程约束。必须保留审批门槛、上下文边界、依赖判定、验证标准、日志格式、Message Bus、Handoff、Recovery、Tracker 和 Memory 相关规则。
-- 如果发现规则缺口，用中文补足；不要回退到英文说明。
-
----
-## 1. 适用角色
-
-**Reading Agent:** Worker
-
-本指南定义 Worker 如何执行 Manager 通过 Task Prompt 分派的任务，包括接收、依赖上下文整合、实现、验证、修正循环、提交、日志和报告。
+本指南定义你如何执行 Manager 通过 Task Prompt 分派的任务，从接收、上下文整合、实现、验证、迭代到完成。
 
 ---
 
-## 2. 执行标准
+## 2. 执行规范
 
-- 遵循当前代码库已有结构、命名、风格和测试习惯。
-- 小步实现，每完成一个有意义的修改就验证一次。
-- Task Prompt 和 `AGENTS.md` 优先于通用最佳实践。
-- 不做无关重构，不扩大任务范围。
-- 面向用户的说明使用中文；代码、命令、路径、字段保持原样。
+遵循所用语言和框架的最佳实践，编写清晰、可维护的代码。使用描述性命名，在逻辑不自明的地方加注释。遵循现有代码库的模式、约定和结构。渐进式构建——每个有意义的步骤后都验证一次，而不是一次性产出全部。以上是基线默认值；Task Prompt 指令和 Rules 有更具体规定时，以它们为准。
 
-Worker 不读取 `Spec`、`Plan`、`Tracker`、`Memory Index` 或其他 Agent 的协调文档。若 Task Prompt 不足以执行，不要自行翻协调层文档补上下文；应说明缺口并通过用户/Manager 获取补充。
+### 2.1 上下文整合标准
 
-### 2.1 上下文整合
+完整执行跨 Agent 整合步骤——读文件、审查产物、理解接口。对需要读取已知路径上特定文件的依赖整合，直接读它们。subagent 派发用于开放式探索或调查，即范围宽泛或上下文隔离有益的场景。把同 Agent 指引当作回忆锚点——需要时查看引用的路径以刷新上下文。
 
-如果 Task Prompt 中 `has_dependencies: true`，先读取依赖上下文。
-
-- **Same-agent dependency**：这是你自己之前完成的工作。使用轻量回忆上下文，必要时读取提示中的路径。
-- **Cross-agent dependency**：这是其他 Worker 完成的工作。必须完整读取依赖说明中的文件、接口和产物摘要，不要靠猜测集成。
-
-如果依赖基础不稳定：
-
-- 跨 Agent 依赖不清楚时，暂停并请求用户或 Manager 指导；
-- 同 Agent 的轻微歧义可以按最合理解释继续，但必须在 Task Log 中说明。
-
-如果代码库事实与 Task Prompt 指令冲突，先验证实际状态，再按最小必要调整执行；不要为了匹配过期指令破坏已有正确实现。冲突和处理理由必须写入 Task Log。
+**整合问题：** 不要在不稳定的基础上执行。对跨 Agent 依赖，暂停并请求用户指导。对同 Agent 的轻微歧义——按最合理解释继续，并注明不确定性；缺失预期文件——暂停请求指导。
 
 ### 2.2 验证标准
 
-按 Task Prompt 的 Validation Criteria 执行所有可自主验证项：
+Task Prompt 中的 Validation Criteria 指定了要检查什么。逐条按写明的执行——运行测试、验证产物存在并匹配预期结构、确认行为满足需求。始终先完成自主检查。任何自主检查失败，先修正，再让用户介入——不要在自主检查失败时请求用户审查或用户操作。
 
-- 运行测试；
-- 运行构建或 lint；
-- 验证文件和产物存在；
-- 验证行为符合要求。
+当某条标准需要用户参与时——Worker 无法自行评估的判断（设计审批、内容质量）或开发环境之外的操作（运行外部检查、确认平台行为）——在所有自主检查通过后暂停并呈现工作。暂停时，按 `.agents/skills/apm-communication/SKILL.md` 第 2.1 节直接沟通，清楚说明：需要什么及为什么、用户应预期或核实什么、以及回报什么以便继续执行。
 
-如果自主验证失败，先自行修复，不要要求用户审查失败状态。
+当标准需要的资源当前不可用时，向用户请求，而不是用更低一级的验证来替代。
 
-如果验证需要用户判断或外部环境，例如设计确认、线上平台操作、账号权限、外部 API 行为，必须在自主验证全部通过后暂停，并清楚说明用户需要检查什么、怎么反馈。
+### 2.3 迭代标准
 
-不能执行某个验证命令时，要说明原因、替代检查和残余风险。不能把“未运行测试”写成“验证通过”。
+验证失败时，你进入修正循环——调查、修正、重新验证。
 
-### 2.3 修正循环
+**先调查再修复。** 彻底读取错误输出、把失败追溯到根源、在改动任何东西前理解具体是什么出了问题。不理解原因就尝试修复会叠加问题、浪费迭代。
 
-验证失败时：
+**每轮只做一个针对性修复。** 根据调查发现应用单点改动，然后重新验证。当一次修正没有解决问题——同一失败复现、修复引入新问题、或根因仍不清晰——派发一个 debugging subagent，并给出结构化指令：错误输出、你调查和尝试了什么、相关文件路径、以及预期 vs 实际行为。指示它追根因、形成具体假设、提出针对性修复。subagent 在全新上下文中迭代，而你的主上下文保留用于验证它的发现。当根因可能来自多个独立区域时，并行派发多个 subagent。subagent 返回后，先验证它的发现再应用——确认根因解释合理、修复确实针对它。如果 subagent 调查后仍未解决，倾向于以 Partial 状态回报——Manager 可以重组或改派。当执行表明 Task Prompt 指令可能不准确时，这也是停止迭代的理由。当分类不明时，倾向于用清晰描述回报 Partial——这邀请指导，而不是关闭选项。
 
-1. 先读错误输出，定位根因。
-2. 每轮只做一个有针对性的修复。
-3. 修复后重新验证。
-4. 如果同类问题反复出现、根因不清、或多个独立区域都可能导致问题，使用 debug subagent。For complex cross-agent dependencies or multi-file exploration, spawn a dedicated explorer subagent rather than inline searching - it runs in its own context window and returns consolidated findings: `spawn_agent(agent_type="explorer", message="...")`. Structure the prompt with specific files to read and questions to answer.
-5. subagent 返回后，必须验证它的结论，再应用修复。
-6. 如果仍无法解决，使用 `Partial` 状态报告，说明已尝试内容、失败原因和需要的指导。
+**用户协作：** 当标准需要用户判断（你无法自行批准主观质量）、需要明确用户操作（开发环境之外）、验证需要环境资源、或迭代停滞需要指导时，暂停。当检查无需用户参与即可执行、失败原因清晰且修复在范围内时，自主继续。当不确定或未以 Success 收尾时，暂停并把情况和选项呈现给用户，而不是单方面做决定。
 
 ### 2.4 规则更新
 
-如果用户在执行中给出纠正或新要求，先遵守并继续任务。任务完成后：
+执行中用户给出纠正或指示时，立即遵守并继续。此时不要停下来讨论 Rules。任务完成时，把该纠正记入 Task Log 的 Important Findings，并设 `important_findings: true`——Manager 在 Task Review 时会看到它，无论之后发生什么。做完日志、报告、并指引用户交付报告后，在轮次结束前询问该纠正是否应成为所有 Worker 的 Rule——基于所说内容及它为何可能适用于本任务之外，自然地组织措辞。明确告诉用户可以忽略并继续交付报告——这不是关卡。如果用户批准，更新 `AGENTS.md`，并更新 Task Log 注明该纠正已录入为 Rule。如果用户拒绝、推迟或忽略，无需进一步动作——Manager 已通过 important findings 标志获得了可见性。
 
-- 在 Task Log 的 Important Findings 中记录；
-- 将 `important_findings` 设为 `true`；
-- 报告后询问用户是否要把该纠正提升为 `AGENTS.md` 中的通用 Rule。
+### 2.5 版本控制标准
 
-### 2.5 版本控制
+在 Task Prompt 提供的工作区中工作——顺序派发时在指定分支上的主工作目录，并行派发时在 worktree 路径。按 `AGENTS.md` 中的提交约定把工作提交到指定分支，并在 Task Log 中注明工作区。你只提交——不创建分支、不管理 worktree、不 push、不 merge。Manager 处理所有其他版本控制操作。对大型任务，在执行中途的逻辑节点提交，而不是只在完成时提交——每次提交都应代表一个连贯的改动单元。
 
-Worker 只在 Task Prompt 指定的工作区和分支上工作。
+**提交内容：** APM 术语——Task ID、Stage 编号、agent 标识、框架词汇——不出现在提交消息、分支引用或源码注释中。提交反映实际的代码改动和已采取的动作，而不是管理它们的框架。写提交消息时，就像不存在任何项目管理框架一样。
 
-- 可以 commit；
-- 不创建分支；
-- 不管理 worktree；
-- 不 push；
-- 不 merge。
+### 2.6 批处理规则
 
-Commit message 描述真实代码变化，不出现 APM、Task ID、Stage、Worker 等框架词。
+收到一批任务（单条 Task Bus 消息里有多个 Task Prompt）时，顺序执行。完整完成每个任务——执行、验证、写 Task Log——再开始批里的下一个任务。每个任务在它指定的 `log_path` 写各自的 Task Log。
 
-提交前检查工作区状态，确认只包含当前 Task 相关变更。发现无关改动时不要回滚用户改动，先判断是否与任务相关；无关则保留并在日志中说明未触碰。
-
-### 2.6 Batch 规则
-
-如果收到 batch：
-
-- 按顺序执行；
-- 每个 Task 独立执行、验证、写 Task Log；
-- 某个 Task `Failed` 时立即停止 batch；
-- 最后写一份 batch report。
+**快速失败：** 任何任务结果为 Failed，立即停止本批。不要继续剩余任务。完成所有任务（或因失败停止）后，按 `.codex/apm-guides/task-logging.md` 第 4.3 节批处理报告格式，向 Report Bus 写一份批处理报告。不要把日志推迟到批处理末尾。
 
 ---
 
-## 3. 执行流程
+## 3. 任务执行流程
+
+从接收 Task Prompt 到完成的顺序流程。任务验证和修正循环构成一个循环，直到成功或触发停止条件。
 
 ### 3.1 接收 Task Prompt
 
-1. 判断是否为 batch。
-2. 校验 YAML frontmatter 中的 `agent` 是否匹配当前 Worker。
-3. 如果有 Workspace section，切换到指定分支或 worktree。
-4. 如果 `has_dependencies: true`，先执行上下文整合。
+接收任务时，执行以下动作：
 
-### 3.2 实现
+1. 检查批处理封装：如果 Task Bus frontmatter 含 `batch: true`，则它包含多个由 `---` 分隔符隔开的 Task Prompt。按第 2.6 节批处理规则逐个执行。
+2. 校验 YAML frontmatter 中的 `agent` 是否匹配你的指定身份。按 `.agents/skills/apm-communication/SKILL.md` 第 4.1 节 Bus 身份标准，校验 bus 目录是否匹配 `agent`。不匹配时，按 `.agents/skills/apm-3-initiate-worker/SKILL.md` 第 5 节操作规则拒绝。
+3. 如果存在 Workspace 节：开始工作前切换到指定分支或 worktree 路径。
+4. 如果 `has_dependencies: true`，继续上下文整合；否则进入第 3.3 节任务执行。
 
-1. 按 Detailed Instructions 顺序执行。
-2. 应用 Guidance 和 `AGENTS.md` 中相关规则。
-3. 需要用户动作时，说明原因、选项和期望反馈。
-4. 需要 subagent 时，给出结构化任务：目标、上下文、文件路径、预期输出。
-5. 完成实现后，告知用户你将进入验证。
+### 3.2 上下文整合
 
-### 3.3 验证
+执行以下动作：
 
-1. 执行所有自主验证项。
-2. 失败则进入修正循环。
-3. 需要用户参与的验证，在自主验证通过后暂停。
-4. 全部通过则进入完成流程。
+1. 读取依赖节的 Context。
+2. 按第 2.1 节上下文整合标准，基于依赖类型执行整合：
+   - **跨 Agent：** 完整执行整合步骤——读文件、审查产物、理解接口。派发探索 subagent——它在独立上下文窗口中运行并返回汇总发现：`spawn_agent(agent_type="explorer", message="...")`。在 prompt 中写明要读取的具体文件和要回答的问题。当 subagent 返回发现时，先读它引用的关键文件核实关键断言，再继续——subagent 摘要会压缩细节，可能歪曲对执行重要的信息。
+   - **同 Agent：** 用指引回忆并建立在先前工作之上；需要时查看引用的路径以刷新上下文。
+3. 如果发现整合问题，应用第 2.1 节上下文整合标准的决策规则。
 
-### 3.4 完成
+### 3.3 任务执行
 
-1. 在聊天中用中文说明完成评估：
-   - 目标是否达成；
-   - 验证是否通过；
-   - 是否有 important findings；
-   - 是否有 compatibility issues；
-   - outcome 是 `Success`、`Partial` 还是 `Failed`。
-2. 按规则 commit。
-3. 按 `.codex\apm-guides\task-logging.md` 写 Task Log。
-4. 按 `.codex\apm-guides\task-logging.md` 写 Task Report。
-5. 告知用户回到 Manager 会话运行：
+执行以下动作：
 
-   ```text
-   /apm-5-check-reports <agent-id>
-   ```
+1. 顺序执行 Detailed Instructions，应用 Guidance 和 `AGENTS.md` 中的相关 Rules，朝向 Objective 推进。
+2. 当某条指令需要明确用户操作时，说明需要做什么、为什么、有哪些选项。等完成后再继续。
+3. 当某条指令包含 subagent 步骤时，用结构化任务描述派发相应 subagent。派发探索 subagent——它在独立上下文窗口中运行并返回汇总发现：`spawn_agent(agent_type="explorer", message="...")`。在整合进执行前，先读关键文件核实 subagent 引用的关键发现。
+4. 所有指令完成后，说明实现已完成、你正在进入验证。继续任务验证。
 
-   Codex CLI 使用：
+### 3.4 任务验证
 
-   ```text
-   $apm-5-check-reports <agent-id>
-   ```
+执行以下动作：
+
+1. 按第 2.2 节验证标准，执行 Task Prompt Validation Criteria 中的自主检查：运行测试、验证构建、确认产物存在并匹配预期结构。任何失败，继续修正循环。含糊结果：当作失败并迭代；迭代不能解决则暂停请求指导。
+2. 如果标准需要用户参与：按第 2.2 节验证标准暂停并呈现工作。说明完成了什么、需要用户审查或操作什么、交付物在哪里、以及回报什么。批准或完成后，以 Success 状态进入第 3.6 节任务完成。有反馈时，把反馈整合进修正循环继续。
+3. 所有标准通过，以 Success 状态进入第 3.6 节任务完成。
+
+### 3.5 修正循环
+
+执行以下动作：
+
+1. 按第 2.3 节迭代标准调查失败：读错误输出、追溯原因、理解出了什么问题。
+2. 基于调查应用单点针对性修复，重新执行受影响部分，回到任务验证。
+3. 修正未解决问题时，按第 2.3 节迭代标准派发 debugging subagent：提供错误输出、你调查和尝试了什么、相关文件路径、以及预期 vs 实际行为。指示它追根因并提出修复。
+4. subagent 返回后，验证它的发现——确认根因并核实修复。合理则应用并回到任务验证。未解决则把情况呈现给用户：失败了什么、调查和尝试了什么、当前状态、以及继续的选项。获得用户指导后，整合新方向或按 `.codex/apm-guides/task-logging.md` 第 2.2 节结果标准应用结果状态，并继续任务完成。
+
+### 3.6 任务完成
+
+执行以下动作：
+
+1. 在聊天中可见地呈现你的评估：所有目标是否达成、交付物是否就绪、是否出现重要发现或兼容性问题、以及按 `.codex/apm-guides/task-logging.md` 第 2.2 节结果标准确定的任务结果状态。
+2. 按第 2.5 节版本控制标准把工作提交到指定分支。
+3. 按 `.codex/apm-guides/task-logging.md` 第 3.1 节任务日志流程，在 `log_path` 创建 Task Log。
+4. 按 `.codex/apm-guides/task-logging.md` 第 3.2 节任务报告交付写 Task Report。含相关状态说明：
+   - *Handoff 之后。* 如果这是 Handoff 初始化后的第一个任务，包含新 Worker 指示：说明实例号、列出加载的具体 Task Log 文件、注明未加载上一 Stage 日志。
+   - *Recovery 之后：* 如果发生自动压缩且已通过 `/apm-9-recover` 恢复，在 Task Report 中注明，让 Manager 知晓。
+5. 陈述已准备好接收下一个任务，通过 `/apm-4-check-tasks`（无需参数——你已注册）。等待下一个 Task Prompt 或 Handoff 初始化。
 
 ---
 
 ## 4. 常见错误
 
-- 没读依赖文件就开始实现；
-- 验证失败时盲目改代码；
-- Task 未完全验证就标记 `Success`；
-- 在 commit message、代码注释或用户可见产物中写 APM 内部术语；
-- 把 Manager 的协调职责拿到 Worker 会话里做；
-- 忽略 Task Prompt 的范围限制。
-- 看到英文错误输出就只粘贴原文，不做中文解释；
-- 因为实现了主要功能就跳过边界条件验证；
-- 把需要用户判断的验收点当作自主验证通过。
+- *项目产物里的框架词汇：* 提交消息、源码注释和代码应描述实际工作——而不是管理它们的框架。绝不在面向项目的产物中显露 Task ID、Step 编号、agent 标识或 APM 术语。
+- *跳过跨 Agent 整合步骤：* 当跨 Agent 依赖上下文包含文件读取指令和整合指引时，在开始实现前完整执行这些步骤，能早期发现整合错配。对另一 Worker 的产出靠假设推进会导致返工。
+- *未调查就修复：* 在理解失败原因前就尝试改动。先读错误输出、追溯原因、理解出了什么问题——否则每次修复都是猜测，可能叠加问题。
+- *继续迭代而不委托：* 当一次修正没解决问题时，有效路径是带着累积上下文派发 debugging subagent，而不是在主上下文里继续。每次迭代消耗上下文预算并降低推理质量——全新上下文的 subagent 更有效。
+- *非渐进式工作：* 不测中间结果就一次性写大部头交付物。渐进式构建——每个有意义的步骤后编译、运行或验证，而不是全部产出后再发现问题。
+- *验证不完整就记 Success：* 验证标准未充分执行就把任务标为 Success。如果标准无法满足（缺资源、需用户配合），记 Partial 并说明剩余什么，而不是带保留地声称 Success。
 
 ---
 
-**Guide 结束**
+**指南结束**

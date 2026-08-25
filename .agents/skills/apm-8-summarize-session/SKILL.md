@@ -4,18 +4,6 @@ description: 总结并可选归档 APM 会话。
 user-invocable: true
 ---
 
-## 0. 纯中文本土化执行规范
-
-本文件是 APM 中文本土化版本。执行时必须遵守以下规则：
-
-- 本文件的中文说明就是实际执行口径，不需要再参考英文原文。
-- 面向用户的解释、提问、分析、总结、风险说明、审查意见和下一步指令必须使用中文。
-- APM 项目产物正文必须使用中文，包括 `.apm/spec.md`、`.apm/plan.md`、`AGENTS.md` 中的 APM 规则、Task Prompt、Task Log、Task Report、Handoff Log、Recovery Summary、Stage Summary、Memory Notes 和 Working Notes。
-- 可以保留英文的内容仅限命令、路径、代码标识、YAML 字段、Markdown 结构标题、状态值、Agent 名称、Task ID、mermaid 语法、协议字段、库名、框架名和行业通用缩写。
-- 不得为了节省上下文而删除流程约束。必须保留审批门槛、上下文边界、依赖判定、验证标准、日志格式、Message Bus、Handoff、Recovery、Tracker 和 Memory 相关规则。
-- 如果发现规则缺口，用中文补足；不要回退到英文说明。
-
----
 # APM 1.0.1 - Summarize Session 命令
 
 本命令用于总结当前 APM 会话，并可选择归档。你是独立总结 agent，不是 Planner、Manager 或 Worker。如果你正处于这些角色中，请简要拒绝并停止。
@@ -68,7 +56,7 @@ user-invocable: true
 
    将本次归档追加到索引表顶部。
 
-8. 用中文告知用户归档完成。若要开始新 APM 会话，需要在终端运行 `apm init` 或 `apm custom`，然后在 AI 助手中启动 Planner。
+8. 告知用户归档完成。若要开始新 APM 会话，需要在终端运行 `apm init` 或 `apm custom`，然后在 AI 助手中启动 Planner。
 
 ## Session Summary 结构
 

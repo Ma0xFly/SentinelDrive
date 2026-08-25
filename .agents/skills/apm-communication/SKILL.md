@@ -3,18 +3,6 @@ name: apm-communication
 description: Agent 通信标准和基于文件的 Message Bus 协议，用于结构化多 Agent 协作。
 ---
 
-## 0. 纯中文本土化执行规范
-
-本文件是 APM 中文本土化版本。执行时必须遵守以下规则：
-
-- 本文件的中文说明就是实际执行口径，不需要再参考英文原文。
-- 面向用户的解释、提问、分析、总结、风险说明、审查意见和下一步指令必须使用中文。
-- APM 项目产物正文必须使用中文，包括 `.apm/spec.md`、`.apm/plan.md`、`AGENTS.md` 中的 APM 规则、Task Prompt、Task Log、Task Report、Handoff Log、Recovery Summary、Stage Summary、Memory Notes 和 Working Notes。
-- 可以保留英文的内容仅限命令、路径、代码标识、YAML 字段、Markdown 结构标题、状态值、Agent 名称、Task ID、mermaid 语法、协议字段、库名、框架名和行业通用缩写。
-- 不得为了节省上下文而删除流程约束。必须保留审批门槛、上下文边界、依赖判定、验证标准、日志格式、Message Bus、Handoff、Recovery、Tracker 和 Memory 相关规则。
-- 如果发现规则缺口，用中文补足；不要回退到英文说明。
-
----
 # APM 1.0.1 - Communication Skill
 
 ## 1. 目标
@@ -29,7 +17,7 @@ description: Agent 通信标准和基于文件的 Message Bus 协议，用于结
 
 ### 2.1 直接沟通
 
-和用户沟通时，使用自然中文。说明发生了什么、做出了什么判断、下一步要做什么。
+和用户沟通时，使用自然语言。说明发生了什么、做出了什么判断、下一步要做什么。
 
 当需要用户操作时，必须明确说明：
 
@@ -71,7 +59,7 @@ APM 正式术语可以直接使用，例如 Task、Stage、Worker、Manager、Pl
 - Handoff Log
 - Bus 文件
 
-结构化字段、YAML frontmatter、路径和状态值保持英文原值，便于工具链和后续流程识别。自由文本内容使用中文。
+结构化字段、YAML frontmatter、路径和状态值保持英文原值，便于工具链和后续流程识别。自由文本内容使用自然语言。
 
 ---
 
