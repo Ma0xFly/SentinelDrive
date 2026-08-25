@@ -122,7 +122,7 @@ def run_stage(name: str, call: Callable[[], dict[str, Any]]) -> dict[str, Any]:
 
 def extend_stage_errors(errors: list[dict[str, Any]], stage: str, result: dict[str, Any]) -> None:
     if result.get("status") == "failed":
-        errors.append({"stage": stage, "error_message": result.get("error_message", "unknown stage failure")})
+        errors.append({"stage": stage, "error_message": result.get("error_message", "未知阶段失败")})
         return
     if stage == "collection":
         errors.extend(

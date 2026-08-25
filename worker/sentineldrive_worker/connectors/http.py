@@ -55,7 +55,7 @@ class HttpClient:
                 body=body,
             )
         except urllib.error.URLError as exc:
-            raise ConnectorError(f"HTTP request failed for {request_url}: {exc.reason}") from exc
+            raise ConnectorError(f"HTTP 请求失败（{request_url}）：{exc.reason}") from exc
 
 
 def build_url(url: str, query: Mapping[str, object | None] | None = None) -> str:

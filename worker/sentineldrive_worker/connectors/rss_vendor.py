@@ -43,7 +43,7 @@ class RssConnector:
 
         for feed in feeds:
             if not isinstance(feed, Mapping):
-                feed_errors.append({"url": "", "error": "RSS feed entry must be an object"})
+                feed_errors.append({"url": "", "error": "RSS 数据源条目必须是对象"})
                 continue
             feed_url = str(feed.get("url") or "").strip()
             if not feed_url:
@@ -62,7 +62,7 @@ class RssConnector:
                 feed_errors.append({"url": feed_url, "error": sanitized_error(exc)})
 
         if not items and feed_errors:
-            raise ConnectorError(f"all RSS feeds failed: {feed_errors[0]['error']}")
+            raise ConnectorError(f"全部 RSS 数据源失败：{feed_errors[0]['error']}")
 
         cursor = json.dumps({"latest_seen": latest_seen.isoformat() if latest_seen else None}, sort_keys=True)
         return ConnectorResult(
@@ -96,7 +96,7 @@ class VendorAdvisoryConnector:
 
         for endpoint in endpoints:
             if not isinstance(endpoint, Mapping):
-                endpoint_errors.append({"url": "", "error": "vendor endpoint entry must be an object"})
+                endpoint_errors.append({"url": "", "error": "厂商公告端点条目必须是对象"})
                 continue
             endpoint_url = str(endpoint.get("url") or "").strip()
             if not endpoint_url:
@@ -113,7 +113,7 @@ class VendorAdvisoryConnector:
                 endpoint_errors.append({"url": endpoint_url, "error": sanitized_error(exc)})
 
         if not items and endpoint_errors:
-            raise ConnectorError(f"all vendor advisory endpoints failed: {endpoint_errors[0]['error']}")
+            raise ConnectorError(f"全部厂商公告端点失败：{endpoint_errors[0]['error']}")
 
         cursor = json.dumps({"content_hashes": sorted(latest_hashes)}, sort_keys=True)
         return ConnectorResult(
@@ -132,17 +132,17 @@ def parse_feed(text: str) -> list[dict[str, Any]]:
     try:
         root = ET.fromstring(text)
     except ET.ParseError as exc:
-        raise ConnectorError("RSS/Atom feed is malformed XML") from exc
+        raise ConnectorError("RSS/Atom 数据源不是合法的 XML") from exc
 
     tag = strip_namespace(root.tag).lower()
     if tag == "rss":
         channel = find_child(root, "channel")
         if channel is None:
-            raise ConnectorError("RSS feed missing channel")
+            raise ConnectorError("RSS 数据源缺少 channel 节点")
         return [parse_rss_item(item) for item in find_children(channel, "item")]
     if tag == "feed":
         return [parse_atom_entry(entry) for entry in root.findall("{*}entry")]
-    raise ConnectorError("unsupported feed format")
+    raise ConnectorError("不支持的数据源格式")
 
 
 def parse_rss_item(item: ET.Element) -> dict[str, Any]:
@@ -298,7 +298,7 @@ def looks_like_advisory_link(url: str, text: str) -> bool:
 
 def require_success(response: HttpResponse, source_label: str) -> None:
     if response.status_code < 200 or response.status_code >= 300:
-        raise ConnectorError(f"{source_label} returned HTTP {response.status_code}")
+        raise ConnectorError(f"{source_label} 返回 HTTP {response.status_code}")
 
 
 def child_text(parent: ET.Element, child_name: str) -> str | None:

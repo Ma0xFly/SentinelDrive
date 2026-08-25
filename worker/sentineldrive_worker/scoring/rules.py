@@ -148,27 +148,27 @@ def score_threat_intelligence(record: Mapping[str, Any]) -> ScoringResult:
     factors.append(cvss_or_severity_factor(record))
 
     if known_exploited(record, tags, metadata):
-        factors.append(ScoreFactor("known_exploited", "Known exploited or CISA KEV signal", 25.0, True))
+        factors.append(ScoreFactor("known_exploited", "已知在野利用或 CISA KEV 信号", 25.0, True))
     elif normalize_key(record.get("exploit_status")) == "proof_of_concept":
-        factors.append(ScoreFactor("exploit_status", "Proof-of-concept exploit status", 12.0, "proof_of_concept"))
+        factors.append(ScoreFactor("exploit_status", "概念验证（PoC）利用状态", 12.0, "proof_of_concept"))
 
     if has_any_term(signal_text, POC_TERMS) or "poc" in tags or "proof_of_concept" in tags:
-        factors.append(ScoreFactor("public_poc", "Public PoC or exploit code signal", 10.0, True))
+        factors.append(ScoreFactor("public_poc", "公开 PoC 或利用代码信号", 10.0, True))
 
     remote_signal = remote_exploitability_signal(record, signal_text)
     if remote_signal:
-        factors.append(ScoreFactor("remote_exploitability", "Remote exploitability signal", remote_signal[1], remote_signal[0]))
+        factors.append(ScoreFactor("remote_exploitability", "可远程利用信号", remote_signal[1], remote_signal[0]))
 
     auth_signal = authentication_signal(record, signal_text)
     if auth_signal:
-        factors.append(ScoreFactor("authentication_requirement", "Authentication requirement signal", auth_signal[1], auth_signal[0]))
+        factors.append(ScoreFactor("authentication_requirement", "身份认证要求信号", auth_signal[1], auth_signal[0]))
 
     component_signal = vehicle_component_signal(record)
     if component_signal:
-        factors.append(ScoreFactor("vehicle_critical_component", "Vehicle-critical component impact", component_signal[1], component_signal[0]))
+        factors.append(ScoreFactor("vehicle_critical_component", "车控关键组件影响", component_signal[1], component_signal[0]))
 
     if multi_vendor_or_common_component(record, signal_text):
-        factors.append(ScoreFactor("multi_vendor_common_component", "Multi-vendor or common component impact", 8.0, True))
+        factors.append(ScoreFactor("multi_vendor_common_component", "多厂商或通用组件影响", 8.0, True))
 
     factors.append(confidence_factor(record))
 
@@ -197,10 +197,10 @@ def cvss_or_severity_factor(record: Mapping[str, Any]) -> ScoreFactor:
     cvss_score = numeric_or_none(record.get("cvss_score"))
     if cvss_score is not None:
         bounded_cvss = min(max(cvss_score, 0.0), 10.0)
-        return ScoreFactor("cvss", "CVSS base score", round(bounded_cvss * 7.0, 2), round(bounded_cvss, 1))
+        return ScoreFactor("cvss", "CVSS 基础分", round(bounded_cvss * 7.0, 2), round(bounded_cvss, 1))
     severity = normalize_key(record.get("severity")) or "unknown"
     contribution = SEVERITY_FALLBACK.get(severity, SEVERITY_FALLBACK["unknown"])
-    return ScoreFactor("severity", "Severity fallback", contribution, severity)
+    return ScoreFactor("severity", "严重度回退评分", contribution, severity)
 
 
 def known_exploited(record: Mapping[str, Any], tags: set[str], metadata: Mapping[str, Any]) -> bool:
@@ -266,7 +266,7 @@ def multi_vendor_or_common_component(record: Mapping[str, Any], signal_text: str
 def confidence_factor(record: Mapping[str, Any]) -> ScoreFactor:
     confidence = normalize_key(record.get("confidence")) or "medium"
     contribution = {"high": 5.0, "medium": 0.0, "low": -8.0}.get(confidence, 0.0)
-    return ScoreFactor("source_confidence", "Source confidence", contribution, confidence)
+    return ScoreFactor("source_confidence", "数据源可信度", contribution, confidence)
 
 
 def risk_level_for_score(score: float) -> str:

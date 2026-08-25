@@ -174,7 +174,7 @@ def run_connector(
         source_name=source.name,
         status="failed",
         attempts=attempts_made,
-        error_message=sanitize_error(last_error) if last_error else "unknown connector failure",
+        error_message=sanitize_error(last_error) if last_error else "未知连接器错误",
         started_at=started_at,
         finished_at=finished_at,
         next_run_at=next_run_time(source, finished_at),

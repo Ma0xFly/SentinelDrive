@@ -120,11 +120,11 @@ def test_nvd_cursor_resumes_from_last_window_page():
 
 def test_nvd_non_2xx_and_malformed_payloads_raise_clear_errors():
     source = source_config("nvd", base_url="https://services.nvd.nist.gov/rest/json/cves/2.0")
-    with pytest.raises(ConnectorError, match="NVD returned HTTP 503"):
+    with pytest.raises(ConnectorError, match="NVD 返回 HTTP 503"):
         NvdConnector(source, http_client=FakeHttpClient([HttpResponse(source.base_url, 503, {}, b"down")])).collect(
             ConnectorContext(source=source)
         )
-    with pytest.raises(ConnectorError, match="NVD returned malformed JSON"):
+    with pytest.raises(ConnectorError, match="NVD 返回的 JSON 格式错误"):
         NvdConnector(source, http_client=FakeHttpClient([HttpResponse(source.base_url, 200, {}, b"{")])).collect(
             ConnectorContext(source=source)
         )
@@ -177,12 +177,12 @@ def test_cisa_kev_parses_csv_shape():
 def test_cisa_kev_malformed_payloads_raise_clear_errors():
     source = source_config("cisa-kev", base_url="https://www.cisa.gov/feed.json")
 
-    with pytest.raises(ConnectorError, match="CISA KEV response missing vulnerabilities array"):
+    with pytest.raises(ConnectorError, match="CISA KEV 响应缺少 vulnerabilities 数组"):
         CisaKevConnector(
             source,
             http_client=FakeHttpClient([HttpResponse(source.base_url, 200, {"content-type": "application/json"}, b"{}")]),
         ).collect(ConnectorContext(source=source))
-    with pytest.raises(ConnectorError, match="CISA KEV entry missing CVE ID"):
+    with pytest.raises(ConnectorError, match="CISA KEV 条目缺少 CVE 编号"):
         CisaKevConnector(
             source,
             http_client=FakeHttpClient(

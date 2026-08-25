@@ -22,9 +22,9 @@ class SampleConnector:
         payload = RawIntelligencePayload.from_source(
             self.source,
             external_id=f"sample-{item_number}",
-            title="Sample connector heartbeat",
-            summary="No-op connector output used to validate the runtime path.",
-            snippet="connector runtime ready",
+            title="示例连接器心跳",
+            summary="无操作连接器输出，用于验证运行时链路。",
+            snippet="连接器运行时就绪",
             raw_content={
                 "kind": "sample",
                 "cursor": context.cursor,

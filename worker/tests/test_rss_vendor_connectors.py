@@ -141,7 +141,7 @@ def test_malformed_rss_feed_fails_clearly():
         metadata={"connector": "rss", "feeds": [{"name": "Broken Feed", "url": "https://example.test/broken.xml"}]},
     )
 
-    with pytest.raises(ConnectorError, match="all RSS feeds failed"):
+    with pytest.raises(ConnectorError, match="全部 RSS 数据源失败"):
         RssConnector(source, http_client=FakeHttpClient([rss_response("<rss>")])).collect(ConnectorContext(source=source))
 
 
@@ -211,7 +211,7 @@ def test_vendor_all_endpoints_failed_raises_sanitized_error():
         metadata={"connector": "vendor-advisories", "endpoints": [{"vendor": "Broken", "url": "https://example.test/down"}]},
     )
 
-    with pytest.raises(ConnectorError, match="all vendor advisory endpoints failed"):
+    with pytest.raises(ConnectorError, match="全部厂商公告端点失败"):
         VendorAdvisoryConnector(source, http_client=FakeHttpClient([HttpResponse("https://example.test/down", 500, {}, b"")])).collect(
             ConnectorContext(source=source)
         )

@@ -69,12 +69,12 @@ class NvdConnector:
             payload = parse_json_response(response, "NVD")
             vulnerabilities = payload.get("vulnerabilities")
             if not isinstance(vulnerabilities, list):
-                raise ConnectorError("NVD response missing vulnerabilities array")
+                raise ConnectorError("NVD 响应缺少 vulnerabilities 数组")
 
             total_results = int(payload.get("totalResults") or len(vulnerabilities))
             for entry in vulnerabilities:
                 if not isinstance(entry, dict):
-                    raise ConnectorError("NVD vulnerability entry is not an object")
+                    raise ConnectorError("NVD 漏洞条目不是对象")
                 items.append(nvd_payload(self.source, entry, response.url))
 
             pages_fetched += 1
@@ -124,7 +124,7 @@ class CisaKevConnector:
         require_success(response, "CISA KEV")
         entries = parse_kev_response(response)
         if not entries:
-            raise ConnectorError("CISA KEV response did not contain vulnerabilities")
+            raise ConnectorError("CISA KEV 响应未包含漏洞数据")
 
         items = [kev_payload(self.source, entry, response.url) for entry in entries]
         latest_marker = latest_kev_marker(entries)
@@ -146,20 +146,20 @@ def parse_nvd_cursor(cursor: str | None) -> dict[str, Any]:
     try:
         parsed = json.loads(cursor)
     except json.JSONDecodeError as exc:
-        raise ConnectorError("NVD cursor is not valid JSON") from exc
+        raise ConnectorError("NVD 游标不是合法 JSON") from exc
     if not isinstance(parsed, dict):
-        raise ConnectorError("NVD cursor must be a JSON object")
+        raise ConnectorError("NVD 游标必须是 JSON 对象")
 
     result: dict[str, Any] = {}
     if parsed.get("last_mod_end"):
         value = parse_datetime(parsed["last_mod_end"])
         if not value:
-            raise ConnectorError("NVD cursor last_mod_end is not a valid datetime")
+            raise ConnectorError("NVD 游标 last_mod_end 不是有效时间")
         result["last_mod_end"] = value
     if parsed.get("last_mod_start"):
         value = parse_datetime(parsed["last_mod_start"])
         if not value:
-            raise ConnectorError("NVD cursor last_mod_start is not a valid datetime")
+            raise ConnectorError("NVD 游标 last_mod_start 不是有效时间")
         result["last_mod_start"] = value
     if parsed.get("next_start_index") is not None:
         result["next_start_index"] = int(parsed["next_start_index"])
@@ -168,26 +168,26 @@ def parse_nvd_cursor(cursor: str | None) -> dict[str, Any]:
 
 def require_success(response: HttpResponse, source_label: str) -> None:
     if response.status_code < 200 or response.status_code >= 300:
-        raise ConnectorError(f"{source_label} returned HTTP {response.status_code}")
+        raise ConnectorError(f"{source_label} 返回 HTTP {response.status_code}")
 
 
 def parse_json_response(response: HttpResponse, source_label: str) -> dict[str, Any]:
     try:
         payload = json.loads(response.text)
     except json.JSONDecodeError as exc:
-        raise ConnectorError(f"{source_label} returned malformed JSON") from exc
+        raise ConnectorError(f"{source_label} 返回的 JSON 格式错误") from exc
     if not isinstance(payload, dict):
-        raise ConnectorError(f"{source_label} JSON response must be an object")
+        raise ConnectorError(f"{source_label} 的 JSON 响应必须是对象")
     return payload
 
 
 def nvd_payload(source: SourceConfig, entry: Mapping[str, Any], response_url: str) -> RawIntelligencePayload:
     cve = entry.get("cve")
     if not isinstance(cve, dict):
-        raise ConnectorError("NVD vulnerability entry missing cve object")
+        raise ConnectorError("NVD 漏洞条目缺少 cve 对象")
     cve_id = str(cve.get("id") or "").strip()
     if not cve_id:
-        raise ConnectorError("NVD vulnerability entry missing CVE ID")
+        raise ConnectorError("NVD 漏洞条目缺少 CVE 编号")
 
     published = parse_datetime(cve.get("published"))
     last_modified = parse_datetime(cve.get("lastModified"))
@@ -273,11 +273,11 @@ def parse_kev_response(response: HttpResponse) -> list[dict[str, Any]]:
     payload = parse_json_response(response, "CISA KEV")
     vulnerabilities = payload.get("vulnerabilities")
     if not isinstance(vulnerabilities, list):
-        raise ConnectorError("CISA KEV response missing vulnerabilities array")
+        raise ConnectorError("CISA KEV 响应缺少 vulnerabilities 数组")
     entries: list[dict[str, Any]] = []
     for entry in vulnerabilities:
         if not isinstance(entry, dict):
-            raise ConnectorError("CISA KEV vulnerability entry is not an object")
+            raise ConnectorError("CISA KEV 漏洞条目不是对象")
         entries.append(entry)
     return entries
 
@@ -286,16 +286,16 @@ def parse_kev_csv(text: str) -> list[dict[str, Any]]:
     try:
         rows = list(csv.DictReader(io.StringIO(text)))
     except csv.Error as exc:
-        raise ConnectorError("CISA KEV returned malformed CSV") from exc
+        raise ConnectorError("CISA KEV 返回的 CSV 格式错误") from exc
     if not rows:
-        raise ConnectorError("CISA KEV CSV did not contain rows")
+        raise ConnectorError("CISA KEV CSV 没有数据行")
     return [{str(key): value for key, value in row.items()} for row in rows]
 
 
 def kev_payload(source: SourceConfig, entry: Mapping[str, Any], response_url: str) -> RawIntelligencePayload:
     cve_id = first_value(entry, "cveID", "cve_id", "CVE ID")
     if not cve_id:
-        raise ConnectorError("CISA KEV entry missing CVE ID")
+        raise ConnectorError("CISA KEV 条目缺少 CVE 编号")
     vulnerability_name = first_value(entry, "vulnerabilityName", "vulnerability_name") or cve_id
     vendor = first_value(entry, "vendorProject", "vendor_project")
     product = first_value(entry, "product")
