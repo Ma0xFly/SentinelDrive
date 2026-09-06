@@ -14,6 +14,7 @@ const INTELLIGENCE_ID = "11111111-1111-4111-8111-111111111111";
 const ALERT_ID = "22222222-2222-4222-8222-222222222222";
 const SOURCE_ID = "33333333-3333-4333-8333-333333333333";
 const MANUAL_ENTRY_ID = "44444444-4444-4444-8444-444444444444";
+const EXTERNAL_INGEST_ID = "88888888-8888-4888-8888-888888888888";
 const NOW = "2026-05-21T08:00:00Z";
 
 test.beforeEach(async ({ page }) => {
@@ -45,10 +46,16 @@ test.beforeEach(async ({ page }) => {
     }
 
     if (method === "GET" && path === "/intelligence") {
+      if (url.searchParams.get("tag") === "external_ingest") {
+        return json(route, pageResponse([externalIngestSummary()]));
+      }
       return json(route, pageResponse([intelligenceSummary()]));
     }
     if (method === "GET" && path === `/intelligence/${INTELLIGENCE_ID}`) {
       return json(route, intelligenceDetail());
+    }
+    if (method === "GET" && path === `/intelligence/${EXTERNAL_INGEST_ID}`) {
+      return json(route, externalIngestDetail());
     }
 
     if (method === "GET" && path === "/manual-entries") {
@@ -154,6 +161,37 @@ test("login protects the workbench and supports intelligence detail plus export"
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "导出 CSV" }).click();
   expect((await download).suggestedFilename()).toBe("sentineldrive-intelligence.csv");
+});
+
+test("external ingest record renders with attribution in list and detail", async ({ page }) => {
+  await login(page);
+
+  await page.getByPlaceholder("kev、manual").fill("external_ingest");
+  await page.getByRole("button", { name: "查询" }).click();
+
+  await expect(page.getByText("共 1 条，当前 1-1")).toBeVisible();
+  await expect(page.getByRole("cell", { name: "Mocked external AI advisory" })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "CVE-2026-7777" })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "AI 情报收集器" })).toBeVisible();
+  await expect(page.locator(".badge-risk-high", { hasText: "高" })).toBeVisible();
+  await expect(page.getByText("78 分")).toBeVisible();
+
+  await page.getByRole("link", { name: "查看" }).click();
+  await expect(page.getByRole("heading", { name: "Mocked external AI advisory" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "来源归属" })).toBeVisible();
+
+  await expect(page.locator(".source-row")).toContainText("AI 情报收集器");
+  await expect(page.locator(".source-row")).toContainText("ai-collector-2026-7777");
+  await expect(page.locator(".tag-list")).toContainText("external_ingest");
+  await expect(page.getByText("cve:CVE-2026-7777")).toBeVisible();
+
+  const severityField = page.locator(".detail-grid > div").filter({ has: page.getByText("严重度", { exact: true }) });
+  await expect(severityField).toContainText("高");
+  const typeField = page.locator(".detail-grid > div").filter({ has: page.getByText("情报类型", { exact: true }) });
+  await expect(typeField).toContainText("漏洞");
+
+  await expect(page.locator(".risk-panel")).toContainText("78 分");
+  await expect(page.locator(".risk-panel")).toContainText("高");
 });
 
 test("manual entry validates required fields and submits a clean entry", async ({ page }) => {
@@ -307,6 +345,55 @@ function intelligenceDetail() {
       }
     ],
     related_alerts: [alertSummary({ alertStatus: "open" })]
+  };
+}
+
+function externalIngestSummary() {
+  return {
+    id: EXTERNAL_INGEST_ID,
+    title: "Mocked external AI advisory",
+    summary: "Deterministic external/AI ingest browser test item.",
+    intelligence_type: "vulnerability",
+    cve_id: "CVE-2026-7777",
+    severity: "high",
+    risk_level: "high",
+    risk_score: 78,
+    status: "active",
+    affected_vendor: "Example Vendor",
+    affected_product: "External Collector",
+    vehicle_component: null,
+    attack_surface: null,
+    source_names: ["AI 情报收集器"],
+    source_urls: ["https://collector.example.test/ingest/CVE-2026-7777"],
+    tags: ["external_ingest", "ai_collector"],
+    first_seen_at: NOW,
+    last_seen_at: NOW
+  };
+}
+
+function externalIngestDetail() {
+  return {
+    ...externalIngestSummary(),
+    cwe_id: null,
+    cvss_score: 7.8,
+    cvss_vector: null,
+    affected_version: null,
+    exploit_status: "unknown",
+    confidence: "medium",
+    dedup_key: "cve:CVE-2026-7777",
+    score_explanation: null,
+    score_metadata: {},
+    sources: [
+      {
+        id: "99999999-9999-4999-8999-999999999999",
+        source_name: "AI 情报收集器",
+        source_url: "https://collector.example.test/ingest/CVE-2026-7777",
+        external_id: "ai-collector-2026-7777",
+        first_seen_at: NOW,
+        last_seen_at: NOW
+      }
+    ],
+    related_alerts: []
   };
 }
 

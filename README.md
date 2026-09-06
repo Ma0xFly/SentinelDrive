@@ -175,6 +175,7 @@ ls -lh "$backup_file"
 - [本地开发指南](docs/development.md)
 - [Connector 开发指南](docs/connectors.md)
 - [数据源配置示例](docs/source-configuration.md)
+- [外部与 AI 情报接入](docs/external-ingest.md)
 - [测试与 QA 指南](docs/testing.md)
 - [术语表](docs/glossary.md)
 - [Compose 部署验证](docs/qa/compose-deployment-verification.md)

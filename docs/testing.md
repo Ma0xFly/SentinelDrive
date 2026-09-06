@@ -37,12 +37,12 @@ git diff --check
 当前后端测试面：
 
 - FastAPI app：`backend/app/main.py`。
-- 已实现路由：`GET /health`、`GET /ready`、`POST /auth/login`、`POST /auth/logout`、`GET /auth/me`、`GET /users`、`POST /users`、`PATCH /users/{user_id}/status`、`GET /intelligence`、`GET /intelligence/{intelligence_id}`、`POST /alerts/evaluate`、`GET /alerts`、`GET /alerts/{alert_id}`、`PATCH /alerts/{alert_id}/status`、`GET /sources`、`GET /sources/{source_id}`、`GET /sources/jobs`、`GET /sources/pipeline/status`、`POST /sources/pipeline/trigger`、`PATCH /sources/{source_id}/status`、`GET /exports/intelligence.csv`、`GET /exports/intelligence/{intelligence_id}/markdown`、`GET /exports/alerts.csv`、`GET /exports/summary.pdf`、`POST /manual-entries`、`GET /manual-entries`、`GET /manual-entries/{entry_id}` 和 `PATCH /manual-entries/{entry_id}`。
+- 已实现路由：`GET /health`、`GET /ready`、`POST /auth/login`、`POST /auth/logout`、`GET /auth/me`、`GET /users`、`POST /users`、`PATCH /users/{user_id}/status`、`GET /intelligence`、`GET /intelligence/{intelligence_id}`、`POST /intelligence/ingest`、`POST /alerts/evaluate`、`GET /alerts`、`GET /alerts/{alert_id}`、`PATCH /alerts/{alert_id}/status`、`GET /sources`、`GET /sources/{source_id}`、`GET /sources/jobs`、`GET /sources/pipeline/status`、`POST /sources/pipeline/trigger`、`PATCH /sources/{source_id}/status`、`GET /exports/intelligence.csv`、`GET /exports/intelligence/{intelligence_id}/markdown`、`GET /exports/alerts.csv`、`GET /exports/summary.pdf`、`POST /manual-entries`、`GET /manual-entries`、`GET /manual-entries/{entry_id}` 和 `PATCH /manual-entries/{entry_id}`。
 - SQLAlchemy models：`backend/app/models/`。
 - Alembic migrations：`backend/migrations/`。
 - 命令：`make backend-test`。
 
-后端测试当前验证：健康/就绪检查、settings 安全性、model 元数据、约束和索引、密码哈希、token 保护的认证流程、用户创建/列表/状态更新、情报搜索筛选/分页/排序/详情/敏感 metadata 脱敏、告警触发评估、告警筛选、告警状态审计日志、数据源状态/任务日志筛选与脱敏、数据源状态审计日志、CSV/Markdown/PDF 导出的鉴权/筛选/脱敏、人工录入校验/持久化/去重/状态更新、审计事件创建、失败路径、管理员引导行为和迁移内容。真实迁移执行需要运行中的 PostgreSQL 服务。
+后端测试当前验证：健康/就绪检查、settings 安全性、model 元数据、约束和索引、密码哈希、token 保护的认证流程、用户创建/列表/状态更新、情报搜索筛选/分页/排序/详情/敏感 metadata 脱敏、情报 ingest 的鉴权/字段校验/敏感文本拒绝/CVE 与外部编号去重合并/审计写入、告警触发评估、告警筛选、告警状态审计日志、数据源状态/任务日志筛选与脱敏、数据源状态审计日志、CSV/Markdown/PDF 导出的鉴权/筛选/脱敏、人工录入校验/持久化/去重/状态更新、审计事件创建、失败路径、管理员引导行为和迁移内容。真实迁移执行需要运行中的 PostgreSQL 服务。
 
 后续后端测试应覆盖新增 API 的请求校验、错误响应、日期范围筛选、扩展导出格式/筛选，以及真实 API 工作流下的持久化行为。
 
@@ -97,6 +97,7 @@ cd frontend && npx playwright install chromium
 
 - 登录保护的工作台访问。
 - 情报列表、详情导航、数据源归属和 CSV 下载处理。
+- 外部/AI ingest 记录在情报列表与详情页的渲染：CVE、风险等级、`external_ingest` 标签、来源归属和去重键。
 - 人工录入的校验失败和成功提交。
 - 数据源流水线状态展示、`POST /sources/pipeline/trigger` 和独立的 `POST /alerts/evaluate` 控制行为。
 - 告警详情复核、关联情报访问和状态更新。
@@ -148,13 +149,14 @@ make down
 | 情报搜索/详情 | 鉴权要求、规范化字段筛选、数据源归属、分页、排序、安全 metadata/评分/告警引用、确定性 404 | `backend/tests/test_intelligence_api.py` |
 | 数据源连接器与持久化 | 连接器契约、停用/未实现处理、游标/重试/超时/限速、数据源状态/任务日志、raw 持久化、metadata-only 的 HTML/PDF 留存、单数据源失败隔离 | `worker/tests/test_connector_contracts.py`, `worker/tests/test_collection_persistence.py` |
 | 处理流水线 | 采集-规范化-评分编排、阶段摘要、重复运行幂等、数据源失败隔离、无任务输出、注入的告警摘要接缝 | `worker/tests/test_processing_pipeline.py` |
-| 规范化/去重/数据源归属 | NVD/CISA 同一 CVE 合并、同一 raw 记录幂等、厂商 URL 去重、人工 raw 规范化、损坏 raw 失败、token 脱敏 | `worker/tests/test_normalization_pipeline.py` |
+| 规范化/去重/数据源归属 | NVD/CISA 同一 CVE 合并、同一 raw 记录幂等、厂商 URL 去重、人工 raw 规范化、外部 ingest raw 规范化与去重键对齐、损坏 raw 失败、token 脱敏 | `worker/tests/test_normalization_pipeline.py` |
+| 外部/AI ingest 写入路径 | 鉴权要求、字段校验、敏感文本拒绝、CVE 与外部编号去重合并、脱敏、审计写入 | `backend/tests/test_intelligence_ingest_api.py` |
 | 风险评分 | 风险边界、缺失 CVSS 回退、KEV/PoC/远程/认证/车控关键信号、多厂商/通用组件评分、幂等 metadata 更新、评分错误脱敏 | `worker/tests/test_scoring_service.py` |
 | 告警生成/状态更新 | 规则创建、重复预防、突发检测、定向评估、后端脚本调用、鉴权、列表/详情筛选/排序/脱敏、状态审计、备注保留/清除、确定性 404 | `backend/tests/test_alerts_api.py`, `backend/tests/test_alert_evaluation_script.py` |
 | 数据源状态/任务日志 | 鉴权、安全的数据源状态/任务摘要、重试/跳过筛选、错误脱敏、状态审计、确定性 404、SQL 筛选 metadata 推导 | `backend/tests/test_sources_api.py` |
 | 导出 | 鉴权要求、情报 CSV 筛选/URL 脱敏、Markdown 数据源/告警内容、告警 CSV 筛选/备注脱敏、无效告警筛选错误、PDF 脱敏、缺失 Markdown 404 | `backend/tests/test_exports_api.py` |
 | 前端构建/工作台路由 | 生产构建覆盖当前路由 `/`、`/alerts`、`/intelligence/[id]`、`/manual-entry`、`/sources` 和 `/user` | `frontend/package.json`, `frontend/app/`, `frontend/lib/` |
-| 前端浏览器工作流 | Playwright 覆盖登录保护、情报列表/详情/导出、人工录入、数据源处理控制、告警评估和告警状态更新 | `frontend/e2e/operator-workflows.spec.js`, `frontend/playwright.config.js` |
+| 前端浏览器工作流 | Playwright 覆盖登录保护、情报列表/详情/导出、外部/AI ingest 记录渲染、人工录入、数据源处理控制、告警评估和告警状态更新 | `frontend/e2e/operator-workflows.spec.js`, `frontend/playwright.config.js` |
 | 配置/迁移 | Settings/env 校验、生产占位拒绝、迁移内容、model metadata/枚举/索引/约束 | `backend/tests/test_settings.py`, `backend/tests/test_migrations.py`, `backend/tests/test_models.py`, `scripts/config-check.sh` |
 
 ## 残余风险

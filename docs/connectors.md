@@ -17,6 +17,8 @@
 - Alert triggering。
 - Export formatting。
 
+外部与 AI 收集器还有一条非 Connector 写入路径：认证保护的 `POST /intelligence/ingest` 由后端直接写入 raw 与核心情报记录，不经过 Connector、`sources` 配置或 worker 采集。worker 的 `ExternalIngestNormalizer` 按 `entry_origin: external_ingest` 识别这类 raw 记录，其去重键与 ingest 端点对齐，已 normalized 的记录幂等跳过。接入方式见 [外部与 AI 情报接入](external-ingest.md)。
+
 ## 当前扩展点
 
 Worker 目前包含：
