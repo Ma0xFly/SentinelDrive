@@ -7,6 +7,7 @@ from app.api.routes.health import router as health_router
 from app.api.routes.intelligence import router as intelligence_router
 from app.api.routes.manual_entries import router as manual_entries_router
 from app.api.routes.sources import router as sources_router
+from app.api.routes.stats import router as stats_router
 from app.api.routes.users import router as users_router
 from app.core.errors import install_exception_handlers
 from app.core.settings import Settings, get_settings
@@ -29,6 +30,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(intelligence_router)
     app.include_router(manual_entries_router)
     app.include_router(sources_router)
+    app.include_router(stats_router)
     app.include_router(users_router)
     return app
 
