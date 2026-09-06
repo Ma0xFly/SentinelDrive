@@ -1,6 +1,5 @@
 ---
 title: SentinelDrive
-completed_at: 2026-09-06T15:18:42Z
 ---
 
 # APM 任务追踪器
@@ -21,7 +20,19 @@ completed_at: 2026-09-06T15:18:42Z
 
 **Stage 7：** 已完成
 
-**Stage 8：** Complete
+**Stage 8：** 已完成
+
+**Stage 9：** 进行中
+
+## Stage 9 任务追踪
+
+| 任务 | 名称 | Agent | 状态 | 任务日志 |
+| --- | --- | --- | --- | --- |
+| 9.1 | Pro v6 前端底座搭建 | frontend-agent | Active | `.apm/memory/stage-09/task-09-01.log.md` |
+| 9.2 | 威胁统计聚合 API | backend-agent | Active | `.apm/memory/stage-09/task-09-02.log.md` |
+| 9.3 | 核心页面迁移 | frontend-agent | Pending | `.apm/memory/stage-09/task-09-03.log.md` |
+| 9.4 | 威胁态势仪表盘 | frontend-agent | Pending | `.apm/memory/stage-09/task-09-04.log.md` |
+| 9.5 | E2E 移植、部署切换与文档 | qa-documentation-agent | Pending | `.apm/memory/stage-09/task-09-05.log.md` |
 
 ## Worker 追踪
 
@@ -40,3 +51,7 @@ completed_at: 2026-09-06T15:18:42Z
 | SentinelDrive | main | `type/short-description` | `type: description`，允许 `feat`、`fix`、`refactor`、`docs`、`test`、`chore` |
 
 ## 工作备注
+
+- Stage 9 范围决策（2026-09-06 与用户确认）：前端整体迁移到 Ant Design Pro v6（React 19 + Umi Max 4 + antd 6 + Tailwind v4 + utoopack + pnpm/Node 22）；“OKR 图表”确认为威胁态势统计仪表盘（非 OKR 管理模块）；AI 助手（antd-X）本期不做；多语言先仅中文。
+- 新前端暂放 `frontend-pro/`，旧 `frontend/` 在 Task 9.5 才删除归位；9.1/9.3/9.4 不得修改 `docker-compose.yml` 与旧前端。
+- 页面必须基于真实数据模型（threat_intelligence/sources/alerts/手工录入），禁止照搬 Pro 模板的 IOC、车辆资产、STIX2 示例实体。

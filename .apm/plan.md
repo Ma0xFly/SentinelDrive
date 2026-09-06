@@ -27,6 +27,7 @@ modified: Planner 创建 Plan，并由中文 APM 上下文重构。
 | 6 | 加固、文档与部署就绪 | 4 | QA Documentation Agent, Platform Agent |
 | 7 | 运维加固与管道自动化 | 4 | Intelligence Pipeline Agent, Backend Agent, Frontend Agent, QA Documentation Agent, Platform Agent |
 | 8 | 前端适配与 AI 情报接入预留 | 4 | Frontend Agent, Backend Agent, Intelligence Pipeline Agent, QA Documentation Agent |
+| 9 | 前端 Pro v6 迁移与威胁态势仪表盘 | 5 | Frontend Agent, Backend Agent, QA Documentation Agent |
 
 ## Dependency Graph
 
@@ -120,6 +121,20 @@ subgraph S8["Stage 8: 前端适配与 AI 情报接入预留"]
   T8_3 -.-> T8_4
 end
 
+subgraph S9["Stage 9: 前端 Pro v6 迁移与威胁态势仪表盘"]
+  direction LR
+  T9_1["9.1 Pro v6 前端底座<br/><i>Frontend Agent</i>"]
+  T9_2["9.2 威胁统计聚合 API<br/><i>Backend Agent</i>"]
+  T9_3["9.3 核心页面迁移<br/><i>Frontend Agent</i>"]
+  T9_4["9.4 威胁态势仪表盘<br/><i>Frontend Agent</i>"]
+  T9_5["9.5 E2E 移植与部署切换<br/><i>QA Documentation Agent</i>"]
+  T9_1 --> T9_3
+  T9_3 --> T9_4
+  T9_2 -.-> T9_4
+  T9_3 -.-> T9_5
+  T9_4 -.-> T9_5
+end
+
 T1_1 -.-> T1_2
 T1_1 -.-> T1_3
 T1_1 -.-> T1_4
@@ -152,6 +167,7 @@ T6_3 -.-> T7_2
 T6_4 -.-> T7_4
 T7_2 -.-> T8_1
 T7_3 -.-> T8_4
+T8_4 -.-> T9_1
 
 style T1_1 fill:#8ecae6,color:#000
 style T2_4 fill:#8ecae6,color:#000
@@ -188,6 +204,11 @@ style T8_1 fill:#f4a261,color:#000
 style T8_2 fill:#ffb703,color:#000
 style T8_3 fill:#90be6d,color:#000
 style T8_4 fill:#cdb4db,color:#000
+style T9_1 fill:#f4a261,color:#000
+style T9_2 fill:#ffb703,color:#000
+style T9_3 fill:#f4a261,color:#000
+style T9_4 fill:#f4a261,color:#000
+style T9_5 fill:#cdb4db,color:#000
 ```
 
 ---
@@ -699,3 +720,77 @@ style T8_4 fill:#cdb4db,color:#000
 3. 编写外部/AI 情报接入文档，说明如何通过 ingest 端点写入情报以及 worker 规范化/评分行为。
 4. 更新命令文档与测试说明，使其与已实现服务名、环境变量和脚本一致。
 5. 记录 QA 结果与残余风险。
+
+## Stage 9: 前端 Pro v6 迁移与威胁态势仪表盘
+
+> **背景与范围决策（2026-09-06 Manager 与用户确认）：** 用户要求前端美化并以图表展示威胁态势统计。经评估确认：前端整体从手写样式 Next.js 迁移到 Ant Design Pro v6 底座（React 19 + Umi Max 4 + antd 6 + Tailwind CSS v4 + Biome，构建工具 utoopack）；“OKR 图表”确认为**威胁态势统计仪表盘**，不是 OKR 目标管理模块；AI 助手（@ant-design/x）本期不做。多语言先仅中文。页面必须基于真实数据模型（threat_intelligence / sources / alerts / 手工录入 / 审计），不得照搬模板中的 IOC、车辆资产、STIX2 等示例实体。旧 Next.js 前端在新前端可用后由 Task 9.5 移除。
+
+### Task 9.1: Pro v6 前端底座搭建 - Frontend Agent
+
+* **目标：** 搭建 Ant Design Pro v6 前端底座，完成 OpenAPI 契约接入、认证对接与中文运营工作台布局壳。
+* **产出：** 新前端脚手架（暂放 `frontend-pro/`）、OpenAPI 代码生成或等价类型层、ProLayout 布局与克制主题、登录页与 token/路由守卫、五个页面路由占位、构建验证记录。
+* **验收：** `pnpm build` 成功；登录流程对接后端 `POST /api/auth/login`（真实后端不可用时以模板 mock 验证流转并记录）；未登录访问受保护路由跳转登录页；界面为中文安全运营工作台风格；不包含模板 demo 页、AI 对话、OKR 管理或营销内容；旧 `frontend/` 与 `docker-compose.yml` 未被修改。
+* **执行指导：** 使用 Node 22 LTS + pnpm。优先用 FastAPI OpenAPI schema 自动生成服务层；本机 `.venv` 缺 fastapi 时允许基于 `backend/app` 路由与 schema 源码手写等价类型层，结构对齐 openapi 插件产物以便日后切换。视觉遵循 Spec 的“前端工作台”：信息密度、可预测导航、视觉克制。
+* **依赖：** 无
+
+1. 初始化 Pro v6 模板并裁剪示例页面、mock 演示与无关国际语言包（保留 zh-CN）。
+2. 接入 OpenAPI 代码生成或手写等价服务层，覆盖认证、情报、来源、告警、录入、导出、用户端点。
+3. 配置 ProLayout 中文布局、导航与主题 token，建立态势总览、威胁情报、告警、数据源、手工录入（含用户）路由。
+4. 实现登录页、token 存储、全局请求鉴权头、401 处理与路由守卫。
+5. 运行构建与可用检查，记录本任务采用的契约接入方式与限制。
+
+### Task 9.2: 威胁统计聚合 API - Backend Agent
+
+* **目标：** 提供认证保护的轻量统计聚合端点，一次请求即可支撑前端威胁态势仪表盘渲染。
+* **产出：** `GET /api/stats/overview`（或按现有路由约定命名的等价端点）、响应 schema、聚合服务与聚焦测试。
+* **验收：** 未认证返回 401；空库返回零值结构而非错误；包含情报总数、近 7 天新增、按情报类型/严重度/风险等级/处理状态分布、近 30 天按天新增趋势（缺失日期补零）、告警总数与按状态分布、来源启用数与关联情报计数 Top N；计数口径与既有列表 API 一致；测试通过。
+* **执行指导：** 用 SQLAlchemy 聚合查询实现，固定默认时间窗（近 30 天）且可配置；不做物化视图、不新增缓存基础设施、不做任意维度自由聚合；不暴露敏感字段；适配 4 核/4 GB 目标环境。
+* **依赖：** 无
+
+1. 定义统计响应 schema（totals、分布、趋势、告警、来源五个块）。
+2. 实现聚合查询服务，趋势按天补零，来源计数限制 Top N。
+3. 挂接认证依赖与路由，命名与既有 router 风格一致。
+4. 为空库、多类型分布、趋势补零、告警状态和认证失败编写聚焦测试。
+5. 运行相关后端测试；环境无法运行时如实记录并保持代码与既有测试风格一致。
+
+### Task 9.3: 核心页面迁移 - Frontend Agent
+
+* **目标：** 在新底座上按真实数据模型重建情报列表/详情、告警、数据源管理、手工录入四个核心工作台页面。
+* **产出：** 情报列表（ProTable 搜索/筛选/排序/分页/导出入口）、情报详情（来源归因、领域字段、评分解释、关联告警、导出）、告警工作台（列表、筛选、带备注状态流转）、数据源管理（状态、任务日志、启停、手动触发）、手工录入（ProForm 分组表单与校验），以及前端构建验证。
+* **验收：** 四个页面对接真实后端完成核心流程（真实后端不可用时以契约 mock 验证并记录）；中文标签与枚举映射沿用既有语义（参考旧 `frontend/app/intelligence/labels.js`）；加载/错误/空状态为中文反馈；`pnpm build` 通过；不新增范围外功能。
+* **执行指导：** 遵循 Spec 的“前端工作台”。信息密度适合扫描，视觉克制，任务导向；复用 Task 9.1 的服务层与布局壳，不重复造组件。
+* **依赖：** **Task 9.1 by Frontend Agent**
+
+1. 迁移情报列表与详情页，保留来源归因、去重键、评分解释与导出动作。
+2. 迁移告警工作台，覆盖状态流转与审计备注。
+3. 迁移数据源管理页，覆盖状态、任务日志、启停与手动触发控制面。
+4. 迁移手工录入表单，覆盖字段分组、中文校验与提交反馈。
+5. 统一枚举中文映射与状态标签，运行构建并修复问题。
+
+### Task 9.4: 威胁态势仪表盘 - Frontend Agent
+
+* **目标：** 构建态势总览首页，以图表呈现威胁情报与告警统计。
+* **产出：** 仪表盘页面：统计卡片（情报总数、近 7 天新增、待处理告警、启用来源）、近 30 天新增趋势图、严重度分布、情报类型占比、告警状态分布、来源情报覆盖 Top N；消费 Task 9.2 端点；空态/错误态处理；构建验证。
+* **验收：** 图表渲染真实统计数据且与统计端点口径一致；图表库选择克制（优先 `@ant-design/charts` 或等价轻量方案，不引入超重依赖）；加载/错误/空状态中文反馈；`pnpm build` 通过；不做地图、3D、营销大屏化设计。
+* **执行指导：** 遵循 Spec 的“前端工作台”。仪表盘是运营工具首屏：数字可扫描、图表可对比、无装饰性动画堆砌。
+* **依赖：** **Task 9.2 by Backend Agent**, **Task 9.3 by Frontend Agent**
+
+1. 基于统计端点响应定义仪表盘数据获取与刷新。
+2. 实现统计卡片行与四类图表（趋势、严重度、类型、告警状态）。
+3. 实现来源覆盖 Top N 列表或图形。
+4. 处理空库、请求失败与部分数据缺失的展示。
+5. 运行构建与页面冒烟检查。
+
+### Task 9.5: E2E 移植、部署切换与文档 - QA Documentation Agent
+
+* **目标：** 将浏览器级回归移植到新前端，完成 Compose 部署切换，移除旧 Next.js 前端并同步文档。
+* **产出：** 面向新前端的 Playwright E2E（移植既有 6 个场景 + 新增仪表盘场景，沿用 mock `/api/*` 约定）、`docker-compose.yml` frontend 服务切换为静态托管构建产物、旧 `frontend/` 移除且 `frontend-pro/` 归位为 `frontend/`、README 与 docs 同步、QA 总结。
+* **验收：** E2E 在新前端全部通过；`docker compose config` 校验通过且 frontend 服务可构建、经反向代理可访问；旧前端删除后仓库无残留引用；文档命令、服务名与实现一致；不依赖真实外部数据源。
+* **执行指导：** 遵循 Spec 的“文档要求”。E2E 保持小而高价值；部署产物以静态文件 + nginx 托管为目标，注意 SPA 路由回退与 API 反代路径不回归。
+* **依赖：** **Task 9.3 by Frontend Agent**, **Task 9.4 by Frontend Agent**
+
+1. 将既有 E2E 场景移植到新前端并新增仪表盘场景。
+2. 编写新前端 Dockerfile（多阶段构建静态产物 + nginx）并切换 Compose 服务。
+3. 移除旧 Next.js 前端并归位目录，清理全仓残留引用。
+4. 同步 README、testing、部署与前端相关文档。
+5. 运行 Compose 校验与 E2E，记录 QA 结果与残余风险。
