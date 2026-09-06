@@ -31,13 +31,6 @@ declare namespace API {
     updated_at: ISODateTime;
   }
 
-  interface ManualEntryListParams {
-    category?: ManualEntryCategory;
-    status?: ManualEntryStatus;
-    page?: number;
-    limit?: number;
-  }
-
   interface ManualEntryCreateParams {
     category: ManualEntryCategory;
     title: string;
