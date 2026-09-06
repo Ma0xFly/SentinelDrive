@@ -1,0 +1,65 @@
+{
+  "name": "sentineldrive-frontend-pro",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SentinelDrive 车联网威胁情报平台前端（Ant Design Pro v6 底座）",
+  "scripts": {
+    "analyze": "cross-env ANALYZE=1 max build",
+    "build": "max build",
+    "dev": "cross-env UMI_ENV=dev MOCK=none max dev",
+    "lint": "pnpm biome:lint && pnpm tsc",
+    "biome:lint": "biome lint",
+    "biome": "biome check --write",
+    "prepare": "max setup",
+    "preview": "max preview --port 8000",
+    "preview:build": "max build && max preview --port 8000",
+    "start": "cross-env UMI_ENV=dev max dev",
+    "start:no-mock": "cross-env MOCK=none max dev",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "tsc": "tsc --noEmit"
+  },
+  "browserslist": [
+    "defaults"
+  ],
+  "dependencies": {
+    "@ant-design/icons": "^6.3.2",
+    "@ant-design/pro-components": "^3.1.14-2",
+    "@tanstack/react-query": "^5.101.2",
+    "antd": "^6.6.0",
+    "antd-style": "^4.1.0",
+    "clsx": "^2.1.1",
+    "dayjs": "^1.11.21",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.3",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@types/react-helmet": "^6.1.11",
+    "@umijs/max": "^4.7.3",
+    "@vitest/coverage-v8": "4.1.10",
+    "@vitest/ui": "4.1.10",
+    "cross-env": "^10.1.0",
+    "express": "^5.2.1",
+    "happy-dom": "^20.11.2",
+    "tailwindcss": "^4.3.2",
+    "typescript": "^7.0.2",
+    "vitest": "4.1.10"
+  },
+  "overrides": {
+    "@umijs/plugins": {
+      "@ant-design/pro-components": "$@ant-design/pro-components"
+    }
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
