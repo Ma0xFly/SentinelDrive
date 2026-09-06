@@ -30,8 +30,8 @@ title: SentinelDrive
 | --- | --- | --- | --- | --- |
 | 9.1 | Pro v6 前端底座搭建 | frontend-agent | Done（已合并 903ea67） | `.apm/memory/stage-09/task-09-01.log.md` |
 | 9.2 | 威胁统计聚合 API | backend-agent | Done（已合并 de21098） | `.apm/memory/stage-09/task-09-02.log.md` |
-| 9.3 | 核心页面迁移 | frontend-agent | Active · `feat/frontend-pro-pages`（worktree） | `.apm/memory/stage-09/task-09-03.log.md` |
-| 9.4 | 威胁态势仪表盘 | frontend-agent | Pending | `.apm/memory/stage-09/task-09-04.log.md` |
+| 9.3 | 核心页面迁移 | frontend-agent | Done（已合并 bfbbc81） | `.apm/memory/stage-09/task-09-03.log.md` |
+| 9.4 | 威胁态势仪表盘 | frontend-agent | Active · `feat/frontend-pro-dashboard`（worktree） | `.apm/memory/stage-09/task-09-04.log.md` |
 | 9.5 | E2E 移植、部署切换与文档 | qa-documentation-agent | Pending | `.apm/memory/stage-09/task-09-05.log.md` |
 
 ## Worker 追踪
@@ -61,3 +61,6 @@ title: SentinelDrive
 - 9.5 部署切换注意：新前端 base path `/`，`/api` 经 Caddy `handle_path` 转发，与现有反代语义一致；`frontend-pro/tsconfig.json` 已改 `declaration: false`（TS 7 noEmit 下 TS2883）。
 - 9.2 发现的既有缺陷（待 9.5 一并修复）：`backend/tests/test_migrations.py` 用相对路径读迁移文件，从仓库根运行必失败、从 `backend/` 运行才通过；`httpx` 是测试直接依赖但未列入 `backend/requirements.txt`。
 - `/stats/overview` 消费语义（供 9.4 仪表盘）：分布键按枚举全量补零（响应结构稳定）；趋势固定 30 条、最旧→最新、date 序列化为字符串；来源 Top 10 含禁用来源，按去重关联情报数排序、平局按名称升序。
+- 真实联调环境已就绪可复用（9.3 建立并保持运行）：postgres/redis/backend 容器、`backend/.venv`（主检出）、管理员 `admin@example.test`（compose 默认开发占位密码）。9.4/9.5 直接复用，不得 down/restart。
+- 后端契约缺口（9.3 记录，未修）：`GET /manual-entries` 无分页与筛选参数（前端暂做客户端筛选），数据量增长需补；ingest 的 `components`/`attack_surfaces` 列表字段与详情单值字段无自动推导。留作后续小任务候选。
+- 登录后偶发落在 `/dashboard` 而非 redirect 目标（9.3 观察一次、无法复现）：疑似整页跳转与 initialState 恢复竞态，影响低；若频发改 `history.push` 并等 initialState 就绪。
