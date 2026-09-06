@@ -1,13 +1,9 @@
 import { request } from '@umijs/max';
 
-/** 手工录入列表 GET /manual-entries */
-export async function listManualEntries(
-  params?: API.ManualEntryListParams,
-  options?: { [key: string]: any },
-) {
+/** 手工录入列表（后端返回全量数组） GET /manual-entries */
+export async function listManualEntries(options?: { [key: string]: any }) {
   return request<API.ManualEntry[]>('/manual-entries', {
     method: 'GET',
-    params,
     ...(options || {}),
   });
 }

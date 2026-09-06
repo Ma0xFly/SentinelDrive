@@ -29,9 +29,20 @@ export default [
   },
   {
     path: '/intelligence',
-    name: '威胁情报',
-    icon: 'global',
-    component: './intelligence',
+    routes: [
+      {
+        path: '/intelligence',
+        name: '威胁情报',
+        icon: 'global',
+        component: './intelligence',
+      },
+      {
+        path: '/intelligence/:id',
+        name: '情报详情',
+        hideInMenu: true,
+        component: './intelligence/detail',
+      },
+    ],
   },
   {
     path: '/alerts',
