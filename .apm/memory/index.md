@@ -26,6 +26,12 @@ title: SentinelDrive
 - 定时 worker 管道使用 `sentineldrive.process_pipeline` 执行 collection、raw persistence、normalization 和 scoring。Alert evaluation 按设计仍在 backend 侧；后端 operations API 只能入队已批准的 worker pipeline task，不能暴露任意 Celery 控制、shell 执行、broker URL 或内部服务细节。
 - 前端浏览器工作流覆盖使用 Playwright，配合确定性的 mock `/api/*` 响应和 localhost `NO_PROXY` 处理。它验证 UI 行为和端点装配，但不能替代 reverse-proxy、backend、PostgreSQL、Redis、worker、scheduler 或真实数据源集成的 live Compose 验证。
 
+- 外部/AI 情报 ingest（后端 `POST /intelligence/ingest`）会内联规范化并写入 raw 行（`source_type="api"`、`processing_status="normalized"`、`entry_origin="external_ingest"`），worker 的 pending 查询默认不处理它们。去重键优先级为 `cve → external(dedup_key/external_id) → content → url → text`，worker 新增 `ExternalIngestNormalizer`（按 `entry_origin` 解析）已逐字对齐。但后端 raw 元数据不保留 cve_id/external_id/dedup_key/severity/affected_vendor/external_score（external_id 列折叠 external_id/dedup_key/cve_id，content_hash 混入派生值），未来若新增把外部/AI 情报写成 pending raw 的 connector，需在 metadata 显式写入这些字段才能完全对齐。
+- 仓库同时存在 `worker/app` 与 `backend/app` 两个同名 `app` 包；涉及跨包的导入/测试依赖 pytest 的 `pythonpath = backend worker` 顺序（backend 在前），调整顺序会引入歧义。
+- worker 外部 ingest 去重键对 CVE 做 `.upper()`（`cve:{id.upper()}`），而后端 ingest 使用原样大小写（`cve:{payload.cve_id}`）；规范大写输入下收敛，但若外部写入方提交小写 CVE 会分叉，需由后端 ingest 侧规范化大小写（属 8.2 范围外）。
+
+- `.apm/`、`.agents/`、`.codex/` 已被 Git 跟踪（`.gitignore` 不再忽略它们）。APM 运行时写入（bus、tracker、task log）会表现为工作区改动；派发与合并时需注意让 Worker 只提交自身产出，协调工件由 Manager 统一提交。
+
 ## 阶段总结
 
 ### Stage 1 - 项目基础与运行时骨架
@@ -133,3 +139,17 @@ Platform 完成了针对本地 Compose 栈的真实 backup/restore drill。文�
 - task-07-02-frontend.log.md
 - task-07-03.log.md
 - task-07-04.log.md
+
+### Stage 8 - 前端适配与 AI 情报接入预留
+
+Stage 8 是 Stage 1-7 标记完成后由用户追加的运营适配阶段，聚焦工作台布局质量与外部/AI 情报写入通道。阶段由 Manager 2 启动并完成前两个任务后因上下文丢失中断；Manager 3 依据两月后的 handoff-02 重建阶段：核实 8.1/8.2 已合并，判定 8.3 未执行（无任务日志、worker 无外部来源 normalizer），补写 plan/tracker 的 Stage 8 条目后经用户确认继续协调。启动时还发现 `main` 上存在交接之外的 5 个中文化 commit（`b4a81ba`、`5ca08eb`、`ed223cc`、`b39d16b`、`99d1b65`），未纳入 APM 追踪，按用户指示保持现状。
+
+任务结果：8.1 修复工作台宽屏利用不足与来源详情挤压，并补充三档桌面视口布局 E2E（`fa67fcd`）。8.2 交付认证保护的 `POST /intelligence/ingest`，内联规范化写入核心情报/raw/来源归因，CVE 优先去重并脱敏审计（`782deda`）。8.3 为 worker 新增 `ExternalIngestNormalizer`，按 `entry_origin="external_ingest"` 注册，去重键逐字对齐后端 `_dedup_key`，已规范化记录幂等跳过（`79fd4d3`）；审查确认提交仅含 4 个 worker 文件，worker 全量 88 测试通过。8.4 新增外部 ingest 渲染场景的 Playwright E2E（6/6 通过）、`docs/external-ingest.md` 接入文档及 README/testing/connectors 同步（`2220f53`）。
+
+主要审查发现：ingest 写入的 raw 行为 `processing_status="normalized"`，worker pending 查询不会重复处理；后端 raw metadata 不保留 cve_id/external_id/severity 等字段，未来若有把外部情报写成 pending raw 的 connector 需在 metadata 显式补齐；worker `app` 与 backend `app` 包名冲突，跨包测试依赖 pytest pythonpath 的 backend 优先顺序；worker 去重键对 CVE 大写化而后端保留原样大小写，规范输入下收敛、小写输入会分叉。8.4 的 worker 环境无法运行后端 ingest 测试套件（缺 fastapi/httpx 且离线安装失败），该套件在 8.2 审查时已验证且后端代码此后未变。8.4 的 E2E 用 `tag=external_ingest` mock 分支隔离场景，避免破坏既有列表断言。
+
+**任务日志：**
+- task-08-01.log.md
+- task-08-02.log.md
+- task-08-03.log.md
+- task-08-04.log.md
