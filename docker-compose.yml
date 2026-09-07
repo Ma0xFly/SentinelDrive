@@ -27,9 +27,6 @@ services:
     build:
       context: ./frontend
     restart: unless-stopped
-    environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api}
     expose:
       - "3000"
     depends_on:

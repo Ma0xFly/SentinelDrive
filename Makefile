@@ -21,7 +21,7 @@ backend-test:
 	$(COMPOSE) run --rm backend python -m pytest
 
 frontend-check:
-	$(COMPOSE) run --rm frontend npm run check
+	cd frontend && pnpm build
 
 migrate:
 	$(COMPOSE) run --rm backend ./scripts/migrate.sh

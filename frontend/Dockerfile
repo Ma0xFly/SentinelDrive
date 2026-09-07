@@ -1,18 +1,23 @@
-FROM node:22-alpine
+# 多阶段构建：Node 构建静态产物，nginx 托管
+FROM node:22-alpine AS build
 
 WORKDIR /app
-ENV NEXT_TELEMETRY_DISABLED=1
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
 
-COPY package*.json ./
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+RUN corepack enable
+
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+# allowBuilds 配置在 pnpm-workspace.yaml 中，pnpm fetch 需要它来识别可运行的依赖构建脚本
+RUN pnpm fetch
 
 COPY . .
-ARG NEXT_PUBLIC_API_BASE_URL=/api
-ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
-RUN npm run check && cp -r .next/static .next/standalone/.next/static
+# max build 产物为 dist/ 下的静态文件（含按路由预渲染的 index.html）
+RUN pnpm install --offline && pnpm build
+
+FROM nginx:1.27-alpine
+
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 3000
-ENV HOSTNAME=0.0.0.0 \
-    NODE_ENV=production \
-    PORT=3000
-CMD ["npm", "run", "start"]
