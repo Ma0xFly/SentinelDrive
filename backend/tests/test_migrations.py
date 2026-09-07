@@ -1,8 +1,9 @@
 from pathlib import Path
 
+_BACKEND_DIR = Path(__file__).resolve().parent.parent
 
-MIGRATION = Path("migrations/versions/20260519_0001_create_core_tables.py")
-AUTH_AUDIT_MIGRATION = Path("migrations/versions/20260519_0002_add_auth_audit_actions.py")
+MIGRATION = _BACKEND_DIR / "migrations/versions/20260519_0001_create_core_tables.py"
+AUTH_AUDIT_MIGRATION = _BACKEND_DIR / "migrations/versions/20260519_0002_add_auth_audit_actions.py"
 
 
 def migration_text() -> str:

@@ -9,3 +9,4 @@ bcrypt==4.0.1
 psycopg[binary]==3.2.1
 redis==5.0.7
 pytest==8.2.2
+httpx==0.28.1
