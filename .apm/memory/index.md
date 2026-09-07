@@ -8,7 +8,11 @@ title: SentinelDrive
 
 - 后端 readiness 使用 `/ready`，内部执行轻量 PostgreSQL 和 Redis 探测；`/health` 仅表示进程存活。
 - 后端会在内部把 `postgresql+psycopg://` 规范化为 `psycopg.connect` 可直接使用的连接串，用于 readiness 检查；公开的 `DATABASE_URL` 值仍保留给后续 SQLAlchemy 风格使用。
-- 前端验证使用 `npm run check`，该命令映射到 `next build`；前端依赖已调整为 Next 15.5.18、React 18.2.0，并使用局部 PostCSS override，确保 install 和 audit 可通过。
+- 前端已于 Stage 9 整体迁移至 Ant Design Pro v6（React 19 + Umi Max 4 + antd 6 + utoopack + Tailwind v4，目录 `frontend/`，pnpm/Node 22）：验证命令 `pnpm build` / `pnpm lint` / `pnpm test`（vitest）/ `pnpm e2e`（Playwright，mock `/api/*`）；`pnpm dev`=真实后端（proxy 会剥离 `/api` 前缀），`pnpm start`=mock 模式。部署为多阶段 Docker 构建 + nginx 静态托管 `dist/` + SPA 回退（监听 3000，匹配 `FRONTEND_UPSTREAM`）。旧 Next.js 前端与 `frontend-pro/` 过渡目录均已删除。
+- 新前端的 API 契约层在 `frontend/src/services/`（手写 TypeScript，结构对齐 umi openapi 插件产物）：新增/修改后端端点时必须同步补对应 services 域（如 stats 域）；2026-09 起后端路由新增 `/stats/overview`（认证聚合：totals/四维分布枚举补零/30 天补零趋势/告警/来源 Top 10 含禁用来源）。
+- 图表开发注意：`@ant-design/charts` v2（G2 5）横向条形图需 `xField=类目, yField=数值` + `coordinate={{ transform: [{ type: 'transpose' }] }}`，直接交换 x/y 会翻转坐标轴；antd 6 Statistic 无 `titleStyle`，副统计行用 div 实现。图表库已按路由动态拆包。
+- 后端契约缺口候选（未修，后续小任务池）：`GET /manual-entries` 无分页与筛选参数（前端暂做客户端筛选）；ingest 的 `components`/`attack_surfaces` 列表字段与详情页单值字段（`vehicle_component`/`attack_surface`）之间无自动推导，详情页相应字段为空。
+- 已知低频问题：新前端登录后偶发落在 `/dashboard` 而非 redirect 目标（9.3 观察一次、无法复现），疑似整页跳转与 initialState 恢复竞态；若频发，改 `history.push` 并等 initialState 就绪。
 - Worker 脚本支持可选的 `CELERY_LOG_LEVEL` 和 `CELERY_WORKER_CONCURRENCY`；这些属于脚本级选项，但尚未列入 `.env.example`。
 - 核心持久化使用 SQLAlchemy 2.x 和 Alembic。MVP `IntelligenceType` 值为 `vulnerability`、`exposure`、`incident` 和 `advisory`；未经明确范围批准，不要重新引入更宽泛的通用威胁类型。
 - 认证使用无状态 HMAC 签名 bearer token，TTL 为 8 小时。Logout 会记录审计事件，但不会撤销 token；token 签名依赖 `APP_SECRET_KEY`。
@@ -16,7 +20,7 @@ title: SentinelDrive
 - Connector 运行时契约位于 `worker/sentineldrive_worker/connectors/`，并从 `worker/app/connectors/` 重新导出；当前运行时包含 sample no-op Connector 和骨架执行路径。
 - 数据源状态和任务日志消费者必须考虑 skipped connector run 会作为成功 `job_logs` 存储，并在 `metadata.run_status = "skipped"` 中记录跳过状态；除非有迁移显式扩展 `job_status`，重试细节也保留在 job metadata 中。
 - Stage 3 的数据源 Connector 和规范化由 worker 负责：collection、raw persistence、normalization、deduplication 和 source attribution 位于 `worker/sentineldrive_worker/`；后端人工录入通过认证 API 直接创建 normalized records。
-- 后端迁移测试对工作目录敏感：从 `backend/` 目录运行 `../.venv/bin/python -m pytest tests -q` 或使用容器命令形态，因为迁移测试会按 backend 目录相对路径读取迁移文件。
+- 后端迁移测试已改为基于 `__file__` 的路径解析（Stage 9.5 修复），仓库根与 `backend/` 目录运行均可；`httpx` 已补入 `backend/requirements.txt`。
 - 前端集成应以后端认证路由为事实来源：Stage 4 后 `main` 上可用的路由包括 `/auth/login`、`/auth/me`、`/auth/logout`、`/intelligence`、`/alerts`、`/sources`、`/manual-entries`、`/users` 和 `/exports/*`；前端应保持中文 UI 文案，并避免暴露后端内部信息或敏感响应字段。
 - 前端下载必须使用共享认证下载 helper，不要直接使用裸导出 URL，因为导出端点要求 bearer token。
 - Docker Compose 真实数据源采集要求 `worker` 和 `scheduler` 同时连接 internal network 与出站 `egress` network；PostgreSQL 和 Redis 仍保持内部-only。
@@ -153,3 +157,18 @@ Stage 8 是 Stage 1-7 标记完成后由用户追加的运营适配阶段，聚�
 - task-08-02.log.md
 - task-08-03.log.md
 - task-08-04.log.md
+
+### Stage 9 - 前端 Pro v6 迁移与威胁态势仪表盘
+
+Stage 9 是用户追加的前端现代化阶段，起因是「前端美化 + 图表展示威胁统计」的需求。Manager 评估用户提交的 Ant Design Pro v6 蓝幕后与用户确认三项范围决策：前端整体迁移 Pro v6（而非在旧 Next.js 上渐进美化）；「OKR 图表」确认为威胁态势统计仪表盘（非 OKR 管理模块）；AI 助手（antd-X）本期不做。评估同时纠正了蓝图的实体臆造（IOC/车辆资产/STIX2 均非本项目模型）。
+
+执行分 5 任务。9.1 Frontend 在 `frontend-pro/` 过渡目录搭建 Pro v6 底座（`903ea67`）：官方模板裁剪、手写 8 域 TS 契约层（后端 `.venv` 当时缺失致 openapi 自动生成不可行）、登录/token/401/路由守卫、中文运营布局壳；发现 umi 菜单 locale key 在 utoopack 构建链下不生效，改用中文直接量。9.2 Backend 交付 `GET /stats/overview` 认证聚合端点（`de21098`）：五块数据（总量/四维分布/30 天补零趋势/告警/来源 Top 10），SQL 与测试假 session 双路径同口径，6 个聚焦测试；并顺带发现两个既有缺陷（迁移测试相对路径、httpx 未列入 requirements）。9.3 Frontend 经 git worktree 隔离并行交付四个核心页面（`e455a89` merge `bfbbc81`）：情报 ProTable 列表 + 详情、告警工作台、数据源管理、手工录入 ProForm，全部对接真实后端（worker 自行重建 venv + 容器栈 + 浏览器走查），修正 9.1 的 dev proxy `/api` 前缀剥离缺陷。9.4 Frontend 实现威胁态势仪表盘（`22a8d9b`）：四统计卡片 + 趋势/严重度/类型/告警状态/来源 Top 图表，`@ant-design/charts` 动态拆包，数值与 curl 口径逐项一致。9.5 QA Documentation 收尾（`b9ba343`、`57d711c`、`f602a10`、`1112f78`）：E2E 6 场景移植 + 2 仪表盘场景（9/9），新前端 Dockerfile（nginx 静态托管）+ Compose 切换 + backend 镜像重建（容器原缺 stats 端点），旧前端删除、`frontend-pro/` 归位为 `frontend/` 并清理全仓引用，修复上述两个测试缺陷，12 个文档同步至 pnpm/新目录。
+
+Manager 在各审查中独立复跑门禁（vitest、biome/tsc、pnpm build、E2E 9/9、仓库根 pytest 172 passed、compose config）。阶段验证含容器栈实走：经 reverse-proxy 登录、SPA 路由、`/api/stats/overview` 带 token 200。遗留：contract gap 两个候选（manual-entries 无分页、ingest 列表/单值字段无推导）与登录 redirect 偶发竞态，均已记录为后续小任务池；外部脚本/CI 若引用旧前端路径（`frontend/app`、npm 命令、`NEXT_PUBLIC_API_BASE_URL`）需自行同步。
+
+**任务日志：**
+- task-09-01.log.md
+- task-09-02.log.md
+- task-09-03.log.md
+- task-09-04.log.md
+- task-09-05.log.md
