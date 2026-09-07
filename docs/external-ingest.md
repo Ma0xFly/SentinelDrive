@@ -145,7 +145,7 @@ docker compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB
 
 两层验证互不替代：
 
-- **Playwright mock 验证**：`cd frontend && npm run e2e` 中的外部/AI ingest 场景只在浏览器里 mock `/api/*` 响应，验证情报列表与详情页对 ingest 记录的渲染。它不触达真实后端，不访问真实 NVD/CISA 或网络来源。
+- **Playwright mock 验证**：`cd frontend && pnpm e2e` 中的外部/AI ingest 场景只在浏览器里 mock `/api/*` 响应，验证情报列表与详情页对 ingest 记录的渲染。它不触达真实后端，不访问真实 NVD/CISA 或网络来源。
 - **live Compose 验证**：在运行栈上按「写入示例」用 curl 走真实认证与写入路径，验证持久化、去重、审计与工作台展示。命令见 [测试与 QA 指南](testing.md) 与 [运维手册](operations.md)。
 
 ## 相关文档

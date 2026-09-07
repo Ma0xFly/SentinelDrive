@@ -12,7 +12,7 @@
 - [ ] 只有 `reverse-proxy` 发布公网端口。
 - [ ] PostgreSQL 和 Redis 不发布宿主机端口。
 - [ ] Worker 和 scheduler 不暴露公网入口。
-- [ ] 前端只接收 `NEXT_PUBLIC_API_BASE_URL`。
+- [ ] 前端为静态托管，不接收浏览器可见环境变量，API base path 固定为 `/api`。
 
 ## 数据处理
 

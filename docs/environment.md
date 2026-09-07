@@ -11,8 +11,6 @@
 | `APP_ENV` | `backend`, `worker`, `scheduler` | `development` | 应用环境标识。生产类值会启用占位密钥校验。 |
 | `APP_SECRET_KEY` | `backend` | `change-me-development-only` | 后端必需，用于签名 API bearer tokens。生产类环境前必须替换。 |
 | `READINESS_TIMEOUT_SECONDS` | `backend` | `2` | `/ready` PostgreSQL 和 Redis 依赖探测超时。 |
-| `NODE_ENV` | `frontend` | `production` | 传给 Next.js 服务。 |
-| `NEXT_PUBLIC_API_BASE_URL` | `frontend` | `/api` | 浏览器可见 API base path。不要在 `NEXT_PUBLIC_` 变量中放密钥。 |
 
 ## PostgreSQL 数据库
 
@@ -103,4 +101,4 @@ Redis 必须保持 Compose 内部服务。
 - `NVD_API_KEY` 是可选项。空值被视为 unset。
 - `SOURCE_RSS_FEEDS` 和 `SOURCE_VENDOR_ADVISORY_ENDPOINTS` 设置时必须是 JSON list。
 - 后端 settings 当前会校验已消费的数值型 timeout、interval、rate-limit、retry 和 retention 配置。
-- 前端配置限定为 `NEXT_PUBLIC_API_BASE_URL`；它有意暴露给浏览器，绝不能包含密钥。
+- 前端静态托管，API base path 固定为 `/api`，由反向代理转发到后端；部署不需要浏览器可见环境变量。

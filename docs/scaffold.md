@@ -47,7 +47,7 @@ PostgreSQL 和 Redis 默认不发布宿主机端口。内部服务通过 Compose
 
 后端将 `/health` 限定为进程存活检查。使用 `/ready` 验证 PostgreSQL 与 Redis 连通性，且不暴露配置凭证。受保护 API 路由使用 `POST /auth/login` 签发的 `Authorization: Bearer <token>`；签名 key 来自 `APP_SECRET_KEY`。情报路由暴露规范化搜索/详情数据，使用有界分页和安全 metadata 脱敏。告警路由评估确定性后端触发规则，并支持告警复核/状态更新。人工录入路由将分析人员提交的条目保存到既有 raw 和 normalized intelligence 表。
 
-前端只接收 `NEXT_PUBLIC_API_BASE_URL`；浏览器可见配置不得包含密钥。MVP session 中，前端登录流程只把已签发 bearer token 存入 browser local storage，并在 logout 或 `401` 响应后清除。
+前端静态托管，API base path 固定为 `/api`，由反向代理转发到后端，不需要浏览器可见环境变量。MVP session 中，前端登录流程只把已签发 bearer token 存入 browser local storage，并在 logout 或 `401` 响应后清除。
 
 ## Connector 边界
 
@@ -59,6 +59,6 @@ Worker runtime 包含 contracts、NVD、CISA KEV、RSS、vendor advisory metadat
 
 Backend 当前提供 `/health`、`/ready`、MVP auth/user/intelligence/alert/manual-entry 端点、audit logging、intelligence search/detail、核心持久化 schema、migrations 和 admin/evaluate-alert scripts。
 
-Frontend 当前提供受保护中文工作台路由 `/`、`/intelligence/[id]`、`/alerts`、`/sources`、`/manual-entry` 和 `/user`，并提供共享 API helpers 与可复用 loading/error/empty states。
+Frontend 当前提供受保护中文工作台路由 `/dashboard`、`/intelligence`、`/intelligence/:id`、`/alerts`、`/sources`、`/manual-entries` 和 `/user/login`，并提供共享 API 服务封装与可复用 loading/error/empty states。
 
 这些元素稳定了服务名、build context、运维命令、API 集成和 operations-console layout，为后续更大规模领域实现提供边界。

@@ -21,7 +21,7 @@ make config-check
 
 `SOURCE_RSS_FEEDS` 和 `SOURCE_VENDOR_ADVISORY_ENDPOINTS` 使用 JSON list。示例必须公开且安全；当 `SOURCE_ENABLED_VENDOR_ADVISORIES=true` 且 `SOURCE_VENDOR_ADVISORY_ENDPOINTS` 为空时，会使用内置代表性厂商 seed list。
 
-只有 `NEXT_PUBLIC_API_BASE_URL` 会传给浏览器侧前端。不要创建任何浏览器可见的密钥环境变量。
+前端静态托管，API base path 固定为 `/api`，由反向代理转发到后端。不要创建任何浏览器可见的密钥环境变量。
 
 ## 脚手架验证
 
@@ -86,8 +86,8 @@ cd backend
 
 ```bash
 cd frontend
-npm run check
-npm audit --omit=dev
+pnpm build
+pnpm audit --omit=dev
 ```
 
 文档或配置变更后，从仓库根目录运行：
@@ -98,7 +98,7 @@ make compose-config
 git diff --check
 ```
 
-`npm run check` 是生产 `next build`。Worker 测试会 mock 外部来源，不需要真实 NVD、CISA、RSS 或厂商网络访问。
+`pnpm build` 通过 `max build` 产出静态文件。`make frontend-check` 等价于 `cd frontend && pnpm build`。Worker 测试会 mock 外部来源，不需要真实 NVD、CISA、RSS 或厂商网络访问。
 
 ## 数据库迁移
 

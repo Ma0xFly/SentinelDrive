@@ -32,7 +32,7 @@
 
 ## 枚举值展示约定
 
-数据库、API 字段和枚举值（如 `open`、`acknowledged`、`critical`、`tbox`）在代码、接口和导出数据中**一律保留英文原值**，保证契约稳定和机器可处理；中文标签只在前端展示层映射，统一维护在 `frontend/app/intelligence/labels.js`，不要在组件内新建重复映射。
+数据库、API 字段和枚举值（如 `open`、`acknowledged`、`critical`、`tbox`）在代码、接口和导出数据中**一律保留英文原值**，保证契约稳定和机器可处理；中文标签只在前端展示层映射，统一维护在 `frontend/src/constants/labels.ts`，不要在组件内新建重复映射。
 
 ## 标点与格式约定
 

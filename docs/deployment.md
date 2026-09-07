@@ -77,7 +77,7 @@ curl -fsS -I "http://127.0.0.1/"
 
 ## 公共配置
 
-前端只接收 `NEXT_PUBLIC_API_BASE_URL`。所有 `NEXT_PUBLIC_` 前缀变量都会暴露到浏览器，绝不能包含凭证、Token 或私有内部 URL。
+`frontend` 服务是 nginx 静态托管，API base path 固定为 `/api`，由 `reverse-proxy` 转发到 `backend`。部署时不需要浏览器可见环境变量；不要把凭证、Token 或私有内部 URL 写入前端配置。
 
 ## 反向代理主机与 TLS
 

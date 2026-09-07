@@ -29,4 +29,4 @@
 
 - [ ] 前端不展示 raw payloads、collector headers、Token、API keys、cookies 或 passwords。
 - [ ] Export download 使用认证 helper，不使用裸 URL。
-- [ ] `NEXT_PUBLIC_` 变量不包含密钥或内部私有地址。
+- [ ] 前端静态托管，不接收浏览器可见环境变量（API base path 固定为 `/api`）。

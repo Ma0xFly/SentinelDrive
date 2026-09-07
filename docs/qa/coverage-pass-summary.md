@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | Backend API and services | `backend/tests/` | 69 个测试覆盖 health/readiness、auth/session/user basics、admin bootstrap、manual entry、intelligence search/detail、alerts、source status/job logs、exports、settings、models 和 migration contents。 |
 | Worker pipeline | `worker/tests/` | 57 个测试覆盖 Connector contracts、mocked NVD/CISA/RSS/vendor sources、raw persistence、source status/job logs、normalization/deduplication/source attribution 和 fixed risk scoring。 |
-| Frontend workbench | `frontend/app/`, `frontend/lib/`, `npm run check`, `npm run e2e` | 生产 Next.js build 覆盖 route tree 和 shared API helper imports。Playwright 浏览器工作流用 mocked API data 覆盖 login-gated access、intelligence list/detail/export、manual entry、source processing controls、separate alert evaluation 和 alert status updates。 |
+| Frontend workbench | `frontend/src/pages/`, `frontend/src/services/`, `pnpm build`, `pnpm e2e` | 生产 `max build` 静态构建覆盖 route tree。Playwright 浏览器工作流用 mocked API data 覆盖 login-gated access、intelligence list/detail/export、external ingest record rendering、manual entry validation、source pipeline trigger、alert status updates 和 dashboard stats/empty state。 |
 | Configuration and Compose | `scripts/config-check.sh`, `docker-compose.yml`, `Makefile` | 直接检查验证 development config rules 和 rendered Compose service wiring。 |
 | Documentation and QA | `docs/testing.md`, `docs/qa/*.md` | 测试指南包含 CI-ready commands、acceptance-area coverage map、expected pass criteria 和 residual risks。 |
 
@@ -22,15 +22,15 @@
 | --- | --- |
 | `cd backend && ../.venv/bin/python -m pytest tests -q` | 通过：69 tests，存在 1 个 Starlette dependency 的 `python_multipart` pending deprecation warning。 |
 | `.venv/bin/python -m pytest worker/tests -q` | 通过：57 tests。 |
-| `cd frontend && npm run check` | 通过：`next build` 完成 `/`、`/_not-found`、`/alerts`、`/intelligence/[id]`、`/manual-entry`、`/sources` 和 `/user`。 |
-| `cd frontend && npm run e2e` | 通过：4 个 Playwright browser tests，使用确定性 mocked `/api/*` responses。 |
-| `cd frontend && npm audit --omit=dev` | 通过：0 个生产依赖漏洞。 |
+| `cd frontend && pnpm build` | 通过：`max build` 完成 `/dashboard`、`/intelligence`、`/alerts`、`/sources`、`/manual-entries`、`/user/login` 等路由的静态产物。 |
+| `cd frontend && pnpm e2e` | 通过：9 个 Playwright browser tests，使用确定性 mocked `/api/*` responses。 |
+| `cd frontend && pnpm audit --omit=dev` | 通过：0 个生产依赖漏洞。 |
 | `make config-check` | development environment 下通过。 |
 | `make compose-config` | 通过：Compose 成功渲染。 |
 
 ## 新增或变更测试
 
-在 `frontend/e2e/operator-workflows.spec.js` 和 `frontend/playwright.config.js` 中新增 Playwright 浏览器工作流覆盖。Suite 启动本地 Next.js app，并在浏览器中拦截 `/api/*` 请求，因此工作流确定且不需要 live source collection、backend credentials、PostgreSQL、Redis 或 Celery。
+在 `frontend/e2e/operator-workflows.spec.ts` 和 `frontend/playwright.config.ts` 中新增 Playwright 浏览器工作流覆盖。Suite 启动本地 Umi dev server，并在浏览器中拦截 `/api/*` 请求，因此工作流确定且不需要 live source collection、backend credentials、PostgreSQL、Redis 或 Celery。
 
 ## 文档变更
 

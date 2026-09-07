@@ -14,7 +14,7 @@ SentinelDrive 是一个车联网威胁情报工作台。本仓库提供面向 Li
 运行栈服务：
 
 - `reverse-proxy`：Caddy 公共入口，负责前端流量和 `/api/*` 反向代理。
-- `frontend`：Next.js 中文运营工作台，覆盖情报、告警、数据源、人工录入和基础用户能力。
+- `frontend`：基于 Ant Design Pro 的中文运营工作台（静态托管），覆盖态势总览、情报、告警、数据源、手工录入和用户能力。
 - `backend`：FastAPI API，包含 health/readiness、认证、用户、情报、告警、数据源、人工录入和导出。
 - `worker`：Celery worker，负责执行 Source Connector 和处理任务。
 - `scheduler`：Celery Beat 调度器，负责派发数据源同步任务。

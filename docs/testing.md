@@ -9,9 +9,9 @@
 ```bash
 cd backend && ../.venv/bin/python -m pytest tests -q
 .venv/bin/python -m pytest worker/tests -q
-cd frontend && npm run check
-cd frontend && npm run e2e
-cd frontend && npm audit --omit=dev
+cd frontend && pnpm build
+cd frontend && pnpm e2e
+cd frontend && pnpm audit --omit=dev
 make config-check
 make compose-config
 git diff --check
@@ -21,9 +21,9 @@ git diff --check
 
 - 后端测试全部通过；warning 需要审查，但除非 CI 配置为失败，否则不阻断。
 - Worker 测试全部通过，且不依赖真实网络。
-- 前端 `npm run check` 完成生产 `next build`。
-- 前端 `npm run e2e` 启动本地 Next.js server，并用确定性的 mocked API 响应完成 Playwright 浏览器工作流。
-- 前端 `npm audit --omit=dev` 不报告生产依赖漏洞。
+- 前端 `pnpm build` 完成生产 `max build` 静态构建。
+- 前端 `pnpm e2e` 启动本地 Umi dev server，并用确定性的 mocked API 响应完成 Playwright 浏览器工作流。
+- 前端 `pnpm audit --omit=dev` 不报告生产依赖漏洞。
 - `make config-check` 校验当前环境且不打印密钥值。
 - `make compose-config` 成功渲染 Compose 文件。
 - `git diff --check` 不报告空白字符错误。
@@ -79,11 +79,12 @@ git diff --check
 
 当前前端测试面：
 
-- Next.js app：`frontend/`。
-- 中文工作台页面：`frontend/app/`。
-- 客户端 session provider 和共享 API helpers：`frontend/app/components/`、`frontend/lib/`。
-- 构建命令：`make frontend-check` 或 `cd frontend && npm run check`。
-- 浏览器工作流命令：`cd frontend && npm run e2e`。
+- Ant Design Pro app（Umi/max 底座）：`frontend/`。
+- 中文工作台页面：`frontend/src/pages/`。
+- 客户端 session、请求封装和共享常量：`frontend/src/`、`frontend/src/services/`。
+- 构建命令：`make frontend-check` 或 `cd frontend && pnpm build`。
+- 浏览器工作流命令：`cd frontend && pnpm e2e`。
+- 单元测试：`cd frontend && pnpm test`（vitest）。
 
 新工作站或 CI 镜像上先安装 Playwright 浏览器：
 
@@ -91,18 +92,20 @@ git diff --check
 cd frontend && npx playwright install chromium
 ```
 
-`frontend/e2e/operator-workflows.spec.js` 中的 Playwright 套件会启动本地 Next.js app，并只在浏览器中 mock `/api/*` 响应。它不采集真实数据源，不需要后端凭证，也不需要 PostgreSQL/Redis/Celery。
+`frontend/e2e/operator-workflows.spec.ts` 中的 Playwright 套件会启动本地 Umi dev server（`MOCK=none`，并把 `/api` 代理指向不会响应的地址），并只在浏览器中 mock `/api/*` 响应。它不采集真实数据源，不需要后端凭证，也不需要 PostgreSQL/Redis/Celery。
 
 当前浏览器工作流覆盖：
 
-- 登录保护的工作台访问。
-- 情报列表、详情导航、数据源归属和 CSV 下载处理。
+- 登录守卫与登录保护的工作台访问。
+- 情报列表、详情导航、数据源归属和 CSV/Markdown 导出处理。
 - 外部/AI ingest 记录在情报列表与详情页的渲染：CVE、风险等级、`external_ingest` 标签、来源归属和去重键。
 - 人工录入的校验失败和成功提交。
-- 数据源流水线状态展示、`POST /sources/pipeline/trigger` 和独立的 `POST /alerts/evaluate` 控制行为。
+- 数据源流水线的手动触发确认流程。
 - 告警详情复核、关联情报访问和状态更新。
+- 态势总览仪表盘：统计卡片、图表区域渲染与零值空态。
+- 多桌面视口布局无水平溢出。
 
-剩余前端检查应覆盖登出/session 过期行为、API 失败渲染、响应式布局，以及 Docker 服务可用时经反向代理的真实栈冒烟验证。
+剩余前端检查应覆盖登出/session 过期行为、API 失败渲染，以及 Docker 服务可用时经反向代理的真实栈冒烟验证。
 
 ### Compose 与部署验证
 
@@ -155,14 +158,14 @@ make down
 | 告警生成/状态更新 | 规则创建、重复预防、突发检测、定向评估、后端脚本调用、鉴权、列表/详情筛选/排序/脱敏、状态审计、备注保留/清除、确定性 404 | `backend/tests/test_alerts_api.py`, `backend/tests/test_alert_evaluation_script.py` |
 | 数据源状态/任务日志 | 鉴权、安全的数据源状态/任务摘要、重试/跳过筛选、错误脱敏、状态审计、确定性 404、SQL 筛选 metadata 推导 | `backend/tests/test_sources_api.py` |
 | 导出 | 鉴权要求、情报 CSV 筛选/URL 脱敏、Markdown 数据源/告警内容、告警 CSV 筛选/备注脱敏、无效告警筛选错误、PDF 脱敏、缺失 Markdown 404 | `backend/tests/test_exports_api.py` |
-| 前端构建/工作台路由 | 生产构建覆盖当前路由 `/`、`/alerts`、`/intelligence/[id]`、`/manual-entry`、`/sources` 和 `/user` | `frontend/package.json`, `frontend/app/`, `frontend/lib/` |
-| 前端浏览器工作流 | Playwright 覆盖登录保护、情报列表/详情/导出、外部/AI ingest 记录渲染、人工录入、数据源处理控制、告警评估和告警状态更新 | `frontend/e2e/operator-workflows.spec.js`, `frontend/playwright.config.js` |
+| 前端构建/工作台路由 | 生产构建覆盖当前路由 `/dashboard`、`/intelligence`、`/intelligence/:id`、`/alerts`、`/sources`、`/manual-entries` 和 `/user/login` | `frontend/package.json`, `frontend/src/pages/`, `frontend/config/routes.ts` |
+| 前端浏览器工作流 | Playwright 覆盖登录守卫、情报列表/详情/导出、外部/AI ingest 记录渲染、手工录入、数据源触发、告警状态更新、仪表盘统计与空态、桌面视口无溢出 | `frontend/e2e/operator-workflows.spec.ts`, `frontend/playwright.config.ts` |
 | 配置/迁移 | Settings/env 校验、生产占位拒绝、迁移内容、model metadata/枚举/索引/约束 | `backend/tests/test_settings.py`, `backend/tests/test_migrations.py`, `backend/tests/test_models.py`, `scripts/config-check.sh` |
 
 ## 残余风险
 
 - 前端浏览器覆盖使用 mocked `/api/*` 响应。它验证 UI 行为和端点接线，但不能证明真实 backend、反向代理、PostgreSQL、Redis、worker 或 scheduler 集成。
-- 浏览器测试尚未覆盖登出/session 过期行为、mocked API 失败渲染、响应式布局或生成的 PDF 视觉渲染。
+- 浏览器测试尚未覆盖登出/session 过期行为、mocked API 失败渲染或生成的 PDF 视觉渲染。
 - Docker 运行时验证不由单元测试或 `make compose-config` 覆盖；完整启动与 reverse-proxy/backend/frontend/worker/scheduler 交互需要 Docker daemon。
 - NVD、CISA KEV、RSS 和厂商公告端点的真实数据源验证有意排除在自动化测试外。连接器套件使用 mocked 响应，避免网络波动和凭证要求。
 - 真实 PostgreSQL 迁移执行不属于后端单元套件；当前测试检查迁移内容和 model 元数据。部署验证期间应在隔离的 PostgreSQL 实例上运行迁移。
