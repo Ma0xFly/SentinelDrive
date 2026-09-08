@@ -104,6 +104,7 @@ cd frontend && npx playwright install chromium
 - 告警详情复核、关联情报访问和状态更新。
 - 态势总览仪表盘：统计卡片、图表区域渲染与零值空态。
 - 多桌面视口布局无水平溢出。
+- 访客只读浏览：未登录访问情报列表/详情与数据源页可渲染，写操作入口（导出/手工录入/数据源启停）对访客隐藏，菜单仅公开 3 项，访客访问受保护页跳登录并携带回跳地址。
 
 剩余前端检查应覆盖登出/session 过期行为、API 失败渲染，以及 Docker 服务可用时经反向代理的真实栈冒烟验证。
 
@@ -159,7 +160,7 @@ make down
 | 数据源状态/任务日志 | 鉴权、安全的数据源状态/任务摘要、重试/跳过筛选、错误脱敏、状态审计、确定性 404、SQL 筛选 metadata 推导 | `backend/tests/test_sources_api.py` |
 | 导出 | 鉴权要求、情报 CSV 筛选/URL 脱敏、Markdown 数据源/告警内容、告警 CSV 筛选/备注脱敏、无效告警筛选错误、PDF 脱敏、缺失 Markdown 404 | `backend/tests/test_exports_api.py` |
 | 前端构建/工作台路由 | 生产构建覆盖当前路由 `/dashboard`、`/intelligence`、`/intelligence/:id`、`/alerts`、`/sources`、`/manual-entries` 和 `/user/login` | `frontend/package.json`, `frontend/src/pages/`, `frontend/config/routes.ts` |
-| 前端浏览器工作流 | Playwright 覆盖登录守卫、情报列表/详情/导出、外部/AI ingest 记录渲染、手工录入、数据源触发、告警状态更新、仪表盘统计与空态、桌面视口无溢出 | `frontend/e2e/operator-workflows.spec.ts`, `frontend/playwright.config.ts` |
+| 前端浏览器工作流 | Playwright 覆盖登录守卫、情报列表/详情/导出、外部/AI ingest 记录渲染、手工录入、数据源触发、告警状态更新、仪表盘统计与空态、桌面视口无溢出、访客只读浏览与受保护页跳转 | `frontend/e2e/operator-workflows.spec.ts`, `frontend/playwright.config.ts` |
 | 配置/迁移 | Settings/env 校验、生产占位拒绝、迁移内容、model metadata/枚举/索引/约束 | `backend/tests/test_settings.py`, `backend/tests/test_migrations.py`, `backend/tests/test_models.py`, `scripts/config-check.sh` |
 
 ## 残余风险
