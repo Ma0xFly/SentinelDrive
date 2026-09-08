@@ -31,9 +31,9 @@ title: SentinelDrive
 | 任务 | 名称 | Agent | 状态 | 任务日志 |
 | --- | --- | --- | --- | --- |
 | 10.1 | 访客只读后端 | backend-agent | Done（已合并 60289df） | `.apm/memory/stage-10/task-10-01.log.md` |
-| 10.2 | 访客只读前端 | frontend-agent | Active · `feat/guest-readonly-frontend` | `.apm/memory/stage-10/task-10-02.log.md` |
+| 10.2 | 访客只读前端 | frontend-agent | Done（已合并 d1e6c53） | `.apm/memory/stage-10/task-10-02.log.md` |
 | 10.3 | 垂直信源扩展（NHTSA + vendor） | intelligence-pipeline-agent | Done（已合并 0da1a9f） | `.apm/memory/stage-10/task-10-03.log.md` |
-| 10.4 | 配置与文档同步 | qa-documentation-agent | Waiting: 10.2 | `.apm/memory/stage-10/task-10-04.log.md` |
+| 10.4 | 配置与文档同步 | qa-documentation-agent | Active · `docs/stage10-docs` | `.apm/memory/stage-10/task-10-04.log.md` |
 
 ## Worker 追踪
 
