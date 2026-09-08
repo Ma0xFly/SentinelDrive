@@ -31,11 +31,22 @@ test.beforeEach(async ({ page }) => {
     const url = new URL(request.url());
     const path = url.pathname.replace(/^\/api/, '') || '/';
     const method = request.method();
+    const authed = request.headers().authorization === `Bearer ${TEST_TOKEN}`;
 
     if (method === 'POST' && path === '/auth/login') {
       return json(route, { access_token: TEST_TOKEN, token_type: 'bearer' });
     }
-    if (request.headers().authorization !== `Bearer ${TEST_TOKEN}`) {
+
+    // 公开只读面：未登录可匿名读取情报列表/详情、态势统计、数据源公开字段
+    const isPublicRead =
+      method === 'GET' &&
+      (path === '/intelligence' ||
+        /^\/intelligence\/[0-9a-fA-F-]{36}$/.test(path) ||
+        path === '/sources' ||
+        /^\/sources\/[0-9a-fA-F-]{36}$/.test(path) ||
+        path === '/stats/overview');
+
+    if (!authed && !isPublicRead) {
       return json(
         route,
         { detail: { error: { code: 'not_authenticated', message: '登录状态已过期，请重新登录。' } } },
@@ -106,8 +117,12 @@ test.beforeEach(async ({ page }) => {
     }
 
     // Sources
-    if (method === 'GET' && path === '/sources') return json(route, pageResponse([sourceSummary()]));
-    if (method === 'GET' && path === `/sources/${SOURCE_ID}`) return json(route, sourceDetail());
+    if (method === 'GET' && path === '/sources') {
+      return json(route, pageResponse([authed ? sourceSummary() : sourcePublicSummary()]));
+    }
+    if (method === 'GET' && path === `/sources/${SOURCE_ID}`) {
+      return json(route, authed ? sourceDetail() : sourcePublicDetail());
+    }
     if (method === 'GET' && path === '/sources/jobs') return json(route, pageResponse([sourceJob()]));
     if (method === 'GET' && path === '/sources/pipeline/status') return json(route, pipelineStatus());
     if (method === 'POST' && path === '/sources/pipeline/trigger') {
@@ -341,6 +356,52 @@ test('仪表盘：零值数据展示空态提示', async ({ page }) => {
   await expect(page.getByText('暂无统计数据，情报与告警入库后将在此展示态势图表')).toBeVisible();
 });
 
+test('访客未登录只读浏览公开页，写操作入口隐藏', async ({ page }) => {
+  // 未登录直接访问威胁情报列表（无 token，走公开只读面）
+  await page.goto('/intelligence');
+  await expect(page.getByText('Mocked OTA risk')).toBeVisible();
+
+  // 访客提示与登录入口
+  await expect(page.getByText('访客模式')).toBeVisible();
+  await expect(page.getByRole('button', { name: '登录' })).toBeVisible();
+
+  // 写操作对访客隐藏
+  await expect(page.getByRole('button', { name: '导出 CSV' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '手工录入' })).toHaveCount(0);
+
+  // 菜单仅公开 3 项，不含告警/手工录入/用户管理
+  const menu = page.locator('.ant-menu');
+  await expect(menu.getByText('态势总览')).toBeVisible();
+  await expect(menu.getByText('威胁情报')).toBeVisible();
+  await expect(menu.getByText('数据源')).toBeVisible();
+  await expect(menu.getByText('告警')).toHaveCount(0);
+  await expect(menu.getByText('手工录入')).toHaveCount(0);
+  await expect(menu.getByText('用户管理')).toHaveCount(0);
+
+  // 详情页公开可读，导出按钮隐藏
+  await page.getByText('Mocked OTA risk').first().click();
+  await expect(page).toHaveURL(new RegExp(`/intelligence/${INTELLIGENCE_ID}`));
+  await expect(page.getByText('来源归因').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: '导出 Markdown' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '导出汇总 PDF' })).toHaveCount(0);
+
+  // 数据源页公开可读，运维写入口隐藏
+  await page.goto('/sources');
+  await expect(page.getByText('NVD Mock Source')).toBeVisible();
+  await expect(page.getByRole('button', { name: '手动触发同步' })).toHaveCount(0);
+});
+
+test('访客访问受保护页跳转登录并携带回跳地址', async ({ page }) => {
+  await page.goto('/alerts');
+  await expect(page).toHaveURL(/\/user\/login\?redirect=/);
+  await expect(page.getByText('SentinelDrive 安全运营台')).toBeVisible();
+  // 登录后回跳原页（mock 登录成功）
+  await page.getByPlaceholder('邮箱').fill(USER.email);
+  await page.getByPlaceholder('密码').fill('local-test-password');
+  await page.getByRole('button', { name: /登\s*录/ }).click();
+  await expect(page).toHaveURL(/\/alerts/);
+});
+
 // -------- helpers --------
 
 async function login(page: Page) {
@@ -523,12 +584,28 @@ function sourceSummary() {
   };
 }
 
+// 访客只读面：只暴露公开字段，不包含最近同步/失败次数/任务摘要等运维字段
+function sourcePublicSummary() {
+  return {
+    id: SOURCE_ID,
+    name: 'NVD Mock Source',
+    source_type: 'api',
+    status: 'enabled',
+    enabled: true,
+    base_url: 'https://example.test/nvd',
+  };
+}
+
 function sourceDetail() {
   return {
     ...sourceSummary(),
     base_url: 'https://example.test/nvd',
     last_error_message: null,
   };
+}
+
+function sourcePublicDetail() {
+  return sourcePublicSummary();
 }
 
 function sourceJob() {
