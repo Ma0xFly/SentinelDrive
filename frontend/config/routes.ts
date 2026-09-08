@@ -29,25 +29,21 @@ export default [
   },
   {
     path: '/intelligence',
-    routes: [
-      {
-        path: '/intelligence',
-        name: '威胁情报',
-        icon: 'global',
-        component: './intelligence',
-      },
-      {
-        path: '/intelligence/:id',
-        name: '情报详情',
-        hideInMenu: true,
-        component: './intelligence/detail',
-      },
-    ],
+    name: '威胁情报',
+    icon: 'global',
+    component: './intelligence',
+  },
+  {
+    path: '/intelligence/:id',
+    name: '情报详情',
+    hideInMenu: true,
+    component: './intelligence/detail',
   },
   {
     path: '/alerts',
     name: '告警',
     icon: 'alert',
+    access: 'canOperate',
     component: './alerts',
   },
   {
@@ -60,6 +56,7 @@ export default [
     path: '/manual-entries',
     name: '手工录入',
     icon: 'form',
+    access: 'canOperate',
     component: './manual-entries',
   },
   {

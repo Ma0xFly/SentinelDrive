@@ -1,6 +1,7 @@
 import { CaretRightOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
+import { useModel } from '@umijs/max';
 import {
   App,
   Button,
@@ -39,6 +40,8 @@ const { Text } = Typography;
 const SourcesPage: React.FC = () => {
   const actionRef = useRef<ActionType | undefined>(undefined);
   const { message, modal } = App.useApp();
+  const { initialState } = useModel('@@initialState');
+  const isAuthenticated = !!initialState?.currentUser;
   const [logsOpen, setLogsOpen] = useState(false);
   const [logsSource, setLogsSource] = useState<API.Source | undefined>(
     undefined,
@@ -176,48 +179,52 @@ const SourcesPage: React.FC = () => {
       search: false,
       hideInTable: true,
     },
-    {
-      title: '操作',
-      valueType: 'option',
-      width: 200,
-      fixed: 'right',
-      render: (_, record) => [
-        <a key="logs" onClick={() => openLogs(record)}>
-          任务日志
-        </a>,
-        <Popconfirm
-          key="toggle"
-          title={
-            record.status === 'enabled'
-              ? '确认停用该数据源？'
-              : '确认启用该数据源？'
-          }
-          description={
-            record.status === 'enabled'
-              ? '停用后不再执行自动采集。'
-              : '启用后将恢复自动采集。'
-          }
-          okText="确认"
-          cancelText="取消"
-          onConfirm={() => handleToggle(record)}
-        >
-          <a
-            onClick={() => {
-              if (togglingId !== record.id) {
-                void 0;
-              }
-            }}
-            style={
-              togglingId === record.id
-                ? { color: 'rgba(0,0,0,0.25)', cursor: 'not-allowed' }
-                : undefined
-            }
-          >
-            {record.status === 'enabled' ? '停用' : '启用'}
-          </a>
-        </Popconfirm>,
-      ],
-    },
+    ...(isAuthenticated
+      ? [
+          {
+            title: '操作',
+            valueType: 'option' as const,
+            width: 200,
+            fixed: 'right' as const,
+            render: (_: unknown, record: API.Source) => [
+              <a key="logs" onClick={() => openLogs(record)}>
+                任务日志
+              </a>,
+              <Popconfirm
+                key="toggle"
+                title={
+                  record.status === 'enabled'
+                    ? '确认停用该数据源？'
+                    : '确认启用该数据源？'
+                }
+                description={
+                  record.status === 'enabled'
+                    ? '停用后不再执行自动采集。'
+                    : '启用后将恢复自动采集。'
+                }
+                okText="确认"
+                cancelText="取消"
+                onConfirm={() => handleToggle(record)}
+              >
+                <a
+                  onClick={() => {
+                    if (togglingId !== record.id) {
+                      void 0;
+                    }
+                  }}
+                  style={
+                    togglingId === record.id
+                      ? { color: 'rgba(0,0,0,0.25)', cursor: 'not-allowed' }
+                      : undefined
+                  }
+                >
+                  {record.status === 'enabled' ? '停用' : '启用'}
+                </a>
+              </Popconfirm>,
+            ],
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -231,15 +238,19 @@ const SourcesPage: React.FC = () => {
             onClick={() => actionRef.current?.reload()}
           />
         </Tooltip>,
-        <Button
-          key="trigger"
-          type="primary"
-          icon={<CaretRightOutlined />}
-          loading={triggering}
-          onClick={handleTriggerPipeline}
-        >
-          手动触发同步
-        </Button>,
+        ...(isAuthenticated
+          ? [
+              <Button
+                key="trigger"
+                type="primary"
+                icon={<CaretRightOutlined />}
+                loading={triggering}
+                onClick={handleTriggerPipeline}
+              >
+                手动触发同步
+              </Button>,
+            ]
+          : []),
       ]}
     >
       <ProTable<API.Source>

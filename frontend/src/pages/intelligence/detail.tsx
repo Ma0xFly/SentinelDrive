@@ -1,6 +1,6 @@
 import { DownloadOutlined } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
-import { history, useParams } from '@umijs/max';
+import { history, useModel, useParams } from '@umijs/max';
 import {
   Alert,
   App,
@@ -42,6 +42,8 @@ const { Paragraph, Text, Title } = Typography;
  */
 const IntelligenceDetailPage: React.FC = () => {
   const params = useParams<{ id: string }>();
+  const { initialState } = useModel('@@initialState');
+  const isAuthenticated = !!initialState?.currentUser;
   const { message } = App.useApp();
   const [detail, setDetail] = useState<API.IntelligenceDetail | undefined>(
     undefined,
@@ -237,24 +239,28 @@ const IntelligenceDetailPage: React.FC = () => {
     <PageContainer
       title={detail.title}
       onBack={() => history.push('/intelligence')}
-      extra={[
-        <Button
-          key="export-md"
-          icon={<DownloadOutlined />}
-          loading={exporting}
-          onClick={() => handleExport('markdown')}
-        >
-          导出 Markdown
-        </Button>,
-        <Button
-          key="export-pdf"
-          icon={<DownloadOutlined />}
-          loading={exporting}
-          onClick={() => handleExport('pdf')}
-        >
-          导出汇总 PDF
-        </Button>,
-      ]}
+      extra={
+        isAuthenticated
+          ? [
+              <Button
+                key="export-md"
+                icon={<DownloadOutlined />}
+                loading={exporting}
+                onClick={() => handleExport('markdown')}
+              >
+                导出 Markdown
+              </Button>,
+              <Button
+                key="export-pdf"
+                icon={<DownloadOutlined />}
+                loading={exporting}
+                onClick={() => handleExport('pdf')}
+              >
+                导出汇总 PDF
+              </Button>,
+            ]
+          : []
+      }
     >
       <Space direction="vertical" style={{ width: '100%' }} size={16}>
         <Card bordered={false} title="基础信息">

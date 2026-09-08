@@ -28,6 +28,7 @@ const IntelligenceListPage: React.FC = () => {
   const actionRef = useRef<ActionType | undefined>(undefined);
   const { message } = App.useApp();
   const { initialState } = useModel('@@initialState');
+  const isAuthenticated = !!initialState?.currentUser;
   const canIngest = !!initialState?.currentUser?.is_admin;
 
   const handleExportCsv = async () => {
@@ -228,13 +229,17 @@ const IntelligenceListPage: React.FC = () => {
         pagination={{ defaultPageSize: PAGE_SIZE, showSizeChanger: true }}
         columns={columns}
         toolBarRender={() => [
-          <Button
-            key="export"
-            icon={<DownloadOutlined />}
-            onClick={handleExportCsv}
-          >
-            导出 CSV
-          </Button>,
+          ...(isAuthenticated
+            ? [
+                <Button
+                  key="export"
+                  icon={<DownloadOutlined />}
+                  onClick={handleExportCsv}
+                >
+                  导出 CSV
+                </Button>,
+              ]
+            : []),
           ...(canIngest
             ? [
                 <ManualEntryCreateButton

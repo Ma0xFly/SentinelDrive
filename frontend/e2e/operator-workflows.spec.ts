@@ -96,7 +96,7 @@ test.beforeEach(async ({ page }) => {
     if (method === 'PATCH' && path === `/alerts/${ALERT_ID}/status`) {
       const payload = await request.postDataJSON();
       state.alertStatus = payload.status;
-      if (Object.prototype.hasOwnProperty.call(payload, 'notes')) {
+      if ('notes' in payload) {
         state.alertNotes = payload.notes;
       }
       return json(route, alertDetail(state));

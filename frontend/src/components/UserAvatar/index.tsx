@@ -1,6 +1,6 @@
 import { LogoutOutlined, UserOutlined } from '@ant-design/icons';
 import { history, useModel } from '@umijs/max';
-import { Avatar, Spin } from 'antd';
+import { Avatar, Button, Space, Tag } from 'antd';
 import React, { startTransition } from 'react';
 import { logout as logoutApi } from '@/services/auth';
 import { clearStoredToken } from '@/utils/token';
@@ -8,19 +8,43 @@ import HeaderDropdown from '../HeaderDropdown';
 
 const loginPath = '/user/login';
 
+function getLoginUrl(): string {
+  const { pathname, search, hash } = history.location;
+  if (pathname === loginPath) {
+    return loginPath;
+  }
+  return `${loginPath}?redirect=${encodeURIComponent(pathname + search + hash)}`;
+}
+
 /**
- * 顶部导航的用户头像下拉：展示当前账号并提供退出登录。
+ * 顶部导航用户区：登录用户展示头像下拉（退出登录）；
+ * 访客（未登录）展示「访客模式」提示与登录入口。
  */
 export const UserAvatar: React.FC = () => {
   const { initialState, setInitialState } = useModel('@@initialState');
   const currentUser = initialState?.currentUser;
 
   if (!currentUser) {
-    return <Spin size="small" style={{ marginLeft: 8, marginRight: 8 }} />;
+    return (
+      <Space size={8} style={{ padding: '0 8px' }}>
+        <Tag color="default" style={{ marginInlineEnd: 0 }}>
+          访客模式
+        </Tag>
+        <Button
+          size="small"
+          type="primary"
+          icon={<UserOutlined />}
+          onClick={() => {
+            history.push(getLoginUrl());
+          }}
+        >
+          登录
+        </Button>
+      </Space>
+    );
   }
 
-  const displayName =
-    currentUser.display_name || currentUser.email.split('@')[0];
+  const displayName = currentUser.display_name || currentUser.email.split('@')[0];
 
   const onMenuClick = async ({ key }: { key: string }) => {
     if (key !== 'logout') {

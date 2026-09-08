@@ -11,9 +11,10 @@ dayjs.locale('zh-cn');
 
 import { ErrorBoundary, Footer, OfflineBanner, UserAvatar } from '@/components';
 import { currentUser as queryCurrentUser } from '@/services/auth';
+import { clearStoredToken, getStoredToken } from '@/utils/token';
+import { isPublicPath } from '@/utils/access';
 import defaultSettings from '../config/defaultSettings';
 import { errorConfig } from './requestErrorConfig';
-import { clearStoredToken } from '@/utils/token';
 
 const loginPath = '/user/login';
 
@@ -31,27 +32,49 @@ export async function getInitialState(): Promise<{
       return user;
     } catch (_error) {
       clearStoredToken();
-      const { pathname, search, hash } = history.location;
-      if (pathname !== loginPath) {
-        history.replace(
-          `${loginPath}?redirect=${encodeURIComponent(pathname + search + hash)}`,
-        );
-      }
       return undefined;
     }
   };
 
-  // 登录页不做用户信息预取，其余页面进入时先恢复会话
-  if (history.location.pathname !== loginPath) {
-    const currentUser = await fetchUserInfo();
+  const { pathname } = history.location;
+  // 登录页不做用户信息预取
+  if (pathname === loginPath) {
+    return {
+      fetchUserInfo,
+      settings: defaultSettings as Partial<LayoutSettings>,
+    };
+  }
+
+  // 公开页：无令牌直接以访客进入；有令牌尝试恢复会话，
+  // 令牌失效则静默降级为访客，不强制跳登录。
+  if (isPublicPath(pathname)) {
+    const currentUser = getStoredToken() ? await fetchUserInfo() : undefined;
     return {
       fetchUserInfo,
       currentUser,
       settings: defaultSettings as Partial<LayoutSettings>,
     };
   }
+
+  // 受保护页：必须登录，未登录或令牌失效跳登录并携带回跳地址
+  if (!getStoredToken()) {
+    history.replace(
+      `${loginPath}?redirect=${encodeURIComponent(pathname + history.location.search + history.location.hash)}`,
+    );
+    return {
+      fetchUserInfo,
+      settings: defaultSettings as Partial<LayoutSettings>,
+    };
+  }
+  const currentUser = await fetchUserInfo();
+  if (!currentUser) {
+    history.replace(
+      `${loginPath}?redirect=${encodeURIComponent(pathname + history.location.search + history.location.hash)}`,
+    );
+  }
   return {
     fetchUserInfo,
+    currentUser,
     settings: defaultSettings as Partial<LayoutSettings>,
   };
 }
@@ -65,8 +88,12 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
     footerRender: () => <Footer />,
     onPageChange: () => {
       const { location } = history;
-      // 路由守卫：未登录访问受保护页面时回到登录页
-      if (!initialState?.currentUser && location.pathname !== loginPath) {
+      // 路由守卫：受保护页面未登录时回到登录页；公开页放行访客
+      if (
+        !initialState?.currentUser &&
+        location.pathname !== loginPath &&
+        !isPublicPath(location.pathname)
+      ) {
         clearStoredToken();
         history.replace(
           `${loginPath}?redirect=${encodeURIComponent(location.pathname + location.search + location.hash)}`,
