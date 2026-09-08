@@ -36,6 +36,10 @@ title: SentinelDrive
 
 - `.apm/`、`.agents/`、`.codex/` 已被 Git 跟踪（`.gitignore` 不再忽略它们）。APM 运行时写入（bus、tracker、task log）会表现为工作区改动；派发与合并时需注意让 Worker 只提交自身产出，协调工件由 Manager 统一提交。
 
+- 访客只读访问（Stage 10）已上线：后端 `get_optional_current_user`（复用 `HTTPBearer(auto_error=False)`，无凭据返回 `None`，凭据非法仍 401）。公开只读面为 `GET /intelligence`（列表/详情）、`GET /stats/overview`、`GET /sources`（列表/详情）；`/sources` 匿名响应裁剪为公开字段（id/name/source_type/status/enabled/base_url），运维字段（config/错误/失败次数/sync_state/recent_jobs/时间戳）仅认证可见。写端点、导出、告警处置、用户端点仍强认证。留意：公开端点因复用 `HTTPBearer`，OpenAPI 仍显示 Bearer 锁但运行时匿名可访问。前端 `frontend/src/utils/access.ts` 的 `isPublicPath` 定义公开页（`/dashboard`、`/intelligence`、`/sources`），访客隐藏写操作、菜单仅公开项。
+- 垂直信源（Stage 10）：新增 `nhtsa-recalls` connector（`recallsByVehicle` 端点，软件/OTA 召回归 `incident` + `recall`/`software_related` 标签，机械召回采集层过滤，campaign number 做 `external_id` + `seen_campaigns` 幂等，`SOURCE_ENABLED_NHTSA_RECALLS` 默认 `false`）——**未真实联网验证**，字段名是 camelCase 假设 + snake_case 宽容回退，启用前先做一次联网冒烟。厂商公告默认端点扩充 Vector Informatik / Wind River / Geely / Xiaomi。
+- 并行协调教训（重要）：多个 worker 共享同一 git 工作目录会互相 `checkout` 分支、导致提交串到对方分支（Stage 10 实测两次，靠 ref 操作修复、无数据丢失）。**并行派发多个 worker 必须用独立 git worktree 隔离**；否则各 worker 的提交可能错挂父节点。
+
 ## 阶段总结
 
 ### Stage 1 - 项目基础与运行时骨架
@@ -172,3 +176,17 @@ Manager 在各审查中独立复跑门禁（vitest、biome/tsc、pnpm build、E2
 - task-09-03.log.md
 - task-09-04.log.md
 - task-09-05.log.md
+
+### Stage 10 - 访客只读访问与垂直信源扩展
+
+Stage 10 由用户追加，落地两项需求：访客只读访问 + 垂直信源扩展。Manager 与用户确认访客只读边界（情报列表/详情、信源非敏感字段、态势仪表盘可匿名读；写操作、导出、告警处置、手工录入、用户管理、信源运维字段保持登录），信源扩展按「A 补 vendor 端点 + B 新增 NHTSA 召回 connector」执行，通用威胁情报库与 AI 助手搁置。
+
+任务结果：10.1 Backend 新增 `get_optional_current_user` 依赖与公开只读面（intelligence/stats/sources 匿名可读），信源运维字段按认证态裁剪为 `SourcePublicResponse` 精简结构，写端点保持强认证（`60289df`，backend 90 passed）。10.2 Frontend 实现访客只读视图（`isPublicPath` 守卫、访客菜单 3 项、隐藏写操作、访客提示 + 登录回跳），并修复 9.5 归位后「威胁情报」菜单项因嵌套路由折叠而缺失的回归（`d1e6c53`，17/17 test）。10.3 Pipeline 新增 NHTSA 召回 connector（软件/OTA 归 `incident`、机械召回采集层过滤、campaign 幂等）与 `RecallNormalizer`，扩充厂商公告端点（`0da1a9f`，worker 105 passed）。10.4 QA 补 `.env.example` 的 `SOURCE_ENABLED_NHTSA_RECALLS` 开关、README/testing 同步、2 个访客浏览 E2E 场景（11/11 全绿）。
+
+关键协调事件：10.1/10.3 并行时共享同一工作目录导致两 worker 提交互相串分支（后端提交一度落到 NHTSA 分支、NHTSA 提交一度落到后端分支），两 worker 均用 `git branch -f` 修复、无数据丢失，最终分支拓扑为干净的 fast-forward 链。Manager 据此记入持久教训：并行派发必须使用独立 worktree。遗留：NHTSA 未真实联网验证（字段名假设）、公开端点 OpenAPI 锁标记与实际匿名行为不一致、数据源访客匿名字段渲染为「-」（预期裁剪，非数据缺失）。
+
+**任务日志：**
+- task-10-01.log.md
+- task-10-02.log.md
+- task-10-03.log.md
+- task-10-04.log.md

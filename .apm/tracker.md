@@ -1,5 +1,6 @@
 ---
 title: SentinelDrive
+completed_at: 2026-09-08T15:46:47Z
 ---
 
 # APM 任务追踪器
@@ -24,16 +25,7 @@ title: SentinelDrive
 
 **Stage 9：** 已完成
 
-**Stage 10：** 进行中
-
-## Stage 10 任务追踪
-
-| 任务 | 名称 | Agent | 状态 | 任务日志 |
-| --- | --- | --- | --- | --- |
-| 10.1 | 访客只读后端 | backend-agent | Done（已合并 60289df） | `.apm/memory/stage-10/task-10-01.log.md` |
-| 10.2 | 访客只读前端 | frontend-agent | Done（已合并 d1e6c53） | `.apm/memory/stage-10/task-10-02.log.md` |
-| 10.3 | 垂直信源扩展（NHTSA + vendor） | intelligence-pipeline-agent | Done（已合并 0da1a9f） | `.apm/memory/stage-10/task-10-03.log.md` |
-| 10.4 | 配置与文档同步 | qa-documentation-agent | Active · `docs/stage10-docs` | `.apm/memory/stage-10/task-10-04.log.md` |
+**Stage 10：** 已完成
 
 ## Worker 追踪
 
@@ -53,9 +45,4 @@ title: SentinelDrive
 
 ## 工作备注
 
-- Stage 10 范围（2026-09-08 与用户确认）：访客只读边界 = 情报列表/详情 + 信源非敏感字段 + 态势仪表盘可匿名读，一律只读；写操作、导出、告警处置、手工录入、用户管理、信源运维细节（任务日志/错误/计数）保持登录。信源扩展 = A 补 vendor 端点（Vector Informatik / Wind River / Geely / 小米，经实测可进）+ B 新增 NHTSA 召回 connector；通用威胁情报库搁置；AI 助手继续不做。
-- NHTSA 召回归属 `incident`（软件/OTA 相关打 `recall`/`software_related` 标签，机械类采集层过滤）；vehicle 端点免 key，`recallsByMake/campaigns` 需认证不可用，车辆清单配置化；`Count=0` 宽容，VPIC 规范 model 名。
-- 10.1/10.3 无相互依赖、改动文件不重叠（backend vs worker），并行派发；10.2 依赖 10.1，10.4 依赖 10.2+10.3。
-- **协调教训（10.1/10.3 实测）**：并行 worker 共享同一 git 工作目录会互相切分支、导致提交串分支。已通过 ref 操作修复（无数据丢失），但**后续并行派发必须用独立 worktree** 隔离。10.2 与 10.4 串行（10.4 依赖 10.2），无并行风险。
-- 10.1 遗留：公开端点 OpenAPI 仍显示 Bearer 锁（`get_optional_current_user` 复用 `HTTPBearer`），实际匿名可访问；前端按匿名实现，勿被文档误导。可选后续加 `security=[{}]` 修文档。
-- 10.3 遗留：NHTSA 端点未真实联网验证，Connector 用 camelCase 字段名 + snake_case 宽容回退；真实 JSON 字段若与假设不符需按实际微调，不影响规范化/去重链路。
+（Stage 10 已收尾，备注已蒸馏进 index 记忆要点与 Stage 10 总结。）
