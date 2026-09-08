@@ -315,7 +315,7 @@ def auth_header(token: str) -> dict[str, str]:
 
 
 @pytest.mark.anyio
-async def test_source_routes_require_authentication():
+async def test_source_routes_split_public_read_from_authenticated_operations():
     session = SourceSession()
     source = session.seed_source()
     session.seed_user()
@@ -323,17 +323,17 @@ async def test_source_routes_require_authentication():
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         sources = await client.get("/sources")
+        detail = await client.get(f"/sources/{source.id}")
         jobs = await client.get("/sources/jobs")
         pipeline_status = await client.get("/sources/pipeline/status")
         pipeline_trigger = await client.post("/sources/pipeline/trigger", json={})
-        detail = await client.get(f"/sources/{source.id}")
         update = await client.patch(f"/sources/{source.id}/status", json={"status": "disabled"})
 
-    assert sources.status_code == 401
+    assert sources.status_code == 200
+    assert detail.status_code == 200
     assert jobs.status_code == 401
     assert pipeline_status.status_code == 401
     assert pipeline_trigger.status_code == 401
-    assert detail.status_code == 401
     assert update.status_code == 401
 
 

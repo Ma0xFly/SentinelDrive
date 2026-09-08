@@ -204,14 +204,16 @@ def expected_trend_dates() -> list[str]:
 
 
 @pytest.mark.anyio
-async def test_stats_overview_requires_authentication():
+async def test_stats_overview_allows_anonymous_read_but_rejects_invalid_token():
     app = make_app(StatsSession())
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get("/stats/overview")
+        anon = await client.get("/stats/overview")
+        bad = await client.get("/stats/overview", headers=auth_header("invalid-token"))
 
-    assert response.status_code == 401
-    assert response.json()["error"]["code"] == "unauthorized"
+    assert anon.status_code == 200
+    assert bad.status_code == 401
+    assert bad.json()["error"]["code"] == "unauthorized"
 
 
 @pytest.mark.anyio

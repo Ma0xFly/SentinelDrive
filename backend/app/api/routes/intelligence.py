@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import Select, case, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.api.deps import get_current_user, get_request_session
+from app.api.deps import get_current_user, get_optional_current_user, get_request_session
 from app.api.safety import safe_dict, safe_metadata, safe_text, safe_url
 from app.api.schemas.intelligence import (
     IntelligenceDetailResponse,
@@ -115,7 +115,7 @@ async def list_intelligence(
     sort: IntelligenceSort = IntelligenceSort.RECENT,
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=25, ge=1, le=100),
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_optional_current_user),
     session: Session = Depends(get_request_session),
 ) -> IntelligencePageResponse:
     del current_user
@@ -156,7 +156,7 @@ async def list_intelligence(
 @router.get("/{intelligence_id}", response_model=IntelligenceDetailResponse)
 async def get_intelligence(
     intelligence_id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_optional_current_user),
     session: Session = Depends(get_request_session),
 ) -> IntelligenceDetailResponse:
     del current_user

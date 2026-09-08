@@ -49,6 +49,28 @@ async def get_current_user(
     return user
 
 
+async def get_optional_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    session: Session = Depends(get_request_session),
+    settings: Settings = Depends(get_request_settings),
+) -> User | None:
+    if credentials is None:
+        return None
+    if credentials.scheme.lower() != "bearer":
+        raise _auth_error()
+
+    try:
+        payload = decode_access_token(credentials.credentials, settings)
+        user_id = UUID(str(payload["sub"]))
+    except (KeyError, TypeError, ValueError, TokenError):
+        raise _auth_error() from None
+
+    user = session.get(User, user_id)
+    if user is None or not user.is_active:
+        raise _auth_error()
+    return user
+
+
 async def require_admin_user(current_user: User = Depends(get_current_user)) -> User:
     if not current_user.is_admin:
         raise HTTPException(

@@ -172,7 +172,7 @@ def token_for(app, user: User) -> str:
 
 
 @pytest.mark.anyio
-async def test_intelligence_routes_require_authentication():
+async def test_intelligence_routes_allow_anonymous_read_but_reject_invalid_token():
     session = IntelligenceSession()
     session.seed_user()
     entry = session.seed_entry()
@@ -181,10 +181,14 @@ async def test_intelligence_routes_require_authentication():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         listing = await client.get("/intelligence")
         detail = await client.get(f"/intelligence/{entry.id}")
+        bad_listing = await client.get("/intelligence", headers={"Authorization": "Bearer invalid-token"})
+        bad_detail = await client.get(f"/intelligence/{entry.id}", headers={"Authorization": "Bearer invalid-token"})
 
-    assert listing.status_code == 401
-    assert detail.status_code == 401
-    assert listing.json()["error"]["code"] == "unauthorized"
+    assert listing.status_code == 200
+    assert detail.status_code == 200
+    assert bad_listing.status_code == 401
+    assert bad_detail.status_code == 401
+    assert bad_listing.json()["error"]["code"] == "unauthorized"
 
 
 @pytest.mark.anyio

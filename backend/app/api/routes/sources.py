@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.api.deps import get_current_user, get_pipeline_task_client, get_request_session
+from app.api.deps import get_current_user, get_optional_current_user, get_pipeline_task_client, get_request_session
 from app.api.safety import safe_metadata, safe_text, safe_url
 from app.api.schemas.sources import (
     JobLogPageResponse,
@@ -22,6 +22,8 @@ from app.api.schemas.sources import (
     PipelineTriggerRequest,
     PipelineTriggerResponse,
     SourceJobSummaryResponse,
+    SourcePublicPageResponse,
+    SourcePublicResponse,
     SourceSort,
     SourceStatusPageResponse,
     SourceStatusResponse,
@@ -61,7 +63,7 @@ class JobSearchParams:
     sort: JobLogSort = JobLogSort.RECENT
 
 
-@router.get("", response_model=SourceStatusPageResponse)
+@router.get("", response_model=SourceStatusPageResponse | SourcePublicPageResponse)
 async def list_sources(
     status_filter: SourceStatus | None = Query(default=None, alias="status"),
     source_type: SourceType | None = Query(default=None),
@@ -69,20 +71,41 @@ async def list_sources(
     sort: SourceSort = SourceSort.NAME,
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=25, ge=1, le=100),
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_optional_current_user),
     session: Session = Depends(get_request_session),
-) -> SourceStatusPageResponse:
-    del current_user
+) -> SourceStatusPageResponse | SourcePublicPageResponse:
+    authenticated = current_user is not None
+    if not authenticated:
+        sort = SourceSort.NAME
     params = SourceSearchParams(status=status_filter, source_type=source_type, q=_clean(q), sort=sort)
     statement = _source_statement(params)
     offset = (page - 1) * limit
     if isinstance(session, Session):
         total = session.scalar(select(func.count()).select_from(statement.order_by(None).subquery())) or 0
         sources = list(session.scalars(statement.offset(offset).limit(limit)).all())
+        if not authenticated:
+            return SourcePublicPageResponse(
+                items=[_source_public_response(source) for source in sources],
+                page=page,
+                limit=limit,
+                total=total,
+                has_next=offset + limit < total,
+            )
         jobs_by_source = _jobs_by_source(session, [source.id for source in sources])
     else:
         all_sources = list(session.scalars(statement).all())
         filtered = [source for source in all_sources if _matches_source(source, params)]
+        if not authenticated:
+            sorted_sources = sorted(filtered, key=lambda source: source.name.lower())
+            total = len(sorted_sources)
+            sources = sorted_sources[offset : offset + limit]
+            return SourcePublicPageResponse(
+                items=[_source_public_response(source) for source in sources],
+                page=page,
+                limit=limit,
+                total=total,
+                has_next=offset + limit < total,
+            )
         sorted_sources = _sort_sources(filtered, params.sort, _all_jobs(session))
         total = len(sorted_sources)
         sources = sorted_sources[offset : offset + limit]
@@ -213,14 +236,15 @@ async def trigger_pipeline(
     )
 
 
-@router.get("/{source_id}", response_model=SourceStatusResponse)
+@router.get("/{source_id}", response_model=SourceStatusResponse | SourcePublicResponse)
 async def get_source(
     source_id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_optional_current_user),
     session: Session = Depends(get_request_session),
-) -> SourceStatusResponse:
-    del current_user
+) -> SourceStatusResponse | SourcePublicResponse:
     source = _get_source_or_404(session, source_id)
+    if current_user is None:
+        return _source_public_response(source)
     jobs = _jobs_for_source(session, source.id)
     return _source_response(source, jobs)
 
@@ -330,6 +354,17 @@ def _get_source_or_404(session: Session, source_id: UUID) -> Source:
             detail={"error": {"code": "source_not_found", "message": "来源不存在。"}},
         )
     return source
+
+
+def _source_public_response(source: Source) -> SourcePublicResponse:
+    return SourcePublicResponse(
+        id=source.id,
+        name=source.name,
+        source_type=source.source_type,
+        status=source.status,
+        enabled=source.status == SourceStatus.ENABLED,
+        base_url=safe_url(source.base_url),
+    )
 
 
 def _source_response(source: Source, jobs: list[JobLog]) -> SourceStatusResponse:

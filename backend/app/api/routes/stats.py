@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_request_session
+from app.api.deps import get_optional_current_user, get_request_session
 from app.api.schemas.stats import (
     StatsAlertsResponse,
     StatsOverviewResponse,
@@ -46,7 +46,7 @@ _ALERT_STATUS_KEYS = [item.value for item in AlertStatus]
 
 @router.get("/overview", response_model=StatsOverviewResponse)
 async def get_stats_overview(
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_optional_current_user),
     session: Session = Depends(get_request_session),
 ) -> StatsOverviewResponse:
     del current_user

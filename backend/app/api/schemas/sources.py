@@ -54,13 +54,24 @@ class SourceJobSummaryResponse(BaseModel):
     latest_metadata: dict[str, Any]
 
 
-class SourceStatusResponse(BaseModel):
+class SourcePublicResponse(BaseModel):
     id: UUID
     name: str
     source_type: SourceType
     status: SourceStatus
     enabled: bool
     base_url: str | None
+
+
+class SourcePublicPageResponse(BaseModel):
+    items: list[SourcePublicResponse]
+    page: int
+    limit: int
+    total: int
+    has_next: bool
+
+
+class SourceStatusResponse(SourcePublicResponse):
     config: dict[str, Any]
     last_success_at: datetime | None
     last_error_at: datetime | None
@@ -72,12 +83,8 @@ class SourceStatusResponse(BaseModel):
     updated_at: datetime
 
 
-class SourceStatusPageResponse(BaseModel):
+class SourceStatusPageResponse(SourcePublicPageResponse):
     items: list[SourceStatusResponse]
-    page: int
-    limit: int
-    total: int
-    has_next: bool
 
 
 class JobLogResponse(BaseModel):
