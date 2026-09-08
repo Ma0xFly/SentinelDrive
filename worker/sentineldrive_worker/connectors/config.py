@@ -63,6 +63,21 @@ def _default_env_sources(values: dict[str, str]) -> tuple[SourceConfig, ...]:
             metadata={"connector": "cisa-kev"},
         ),
         SourceConfig(
+            name="nhtsa-recalls",
+            source_type=SourceType.API,
+            enabled=_bool(values.get("SOURCE_ENABLED_NHTSA_RECALLS"), False),
+            base_url="https://api.nhtsa.gov/recalls/recallsByVehicle",
+            sync_interval_seconds=sync_interval,
+            timeout_seconds=timeout,
+            rate_limit_per_minute=rate_limit,
+            retry_policy=retry_policy,
+            metadata={
+                "connector": "nhtsa-recalls",
+                "vehicles": DEFAULT_NHTSA_VEHICLES,
+                "model_years": DEFAULT_NHTSA_MODEL_YEARS,
+            },
+        ),
+        SourceConfig(
             name="vendor-advisories",
             source_type=SourceType.VENDOR,
             enabled=_bool(values.get("SOURCE_ENABLED_VENDOR_ADVISORIES"), False),
@@ -236,4 +251,38 @@ DEFAULT_VENDOR_ENDPOINTS: list[dict[str, Any]] = [
         "url": "https://psirt.bosch.com/security-advisories/",
         "verification_status": "official_security_entry",
     },
+    {
+        "vendor": "Vector Informatik",
+        "url": "https://www.vector.com/en/services/security-advisories/",
+        "verification_status": "official_security_entry",
+    },
+    {
+        "vendor": "Wind River",
+        "url": "https://www.windriver.com/security",
+        "verification_status": "official_security_entry",
+    },
+    {
+        "vendor": "Geely GSRC",
+        "url": "https://security.geely.com/",
+        "verification_status": "official_security_entry",
+    },
+    {
+        "vendor": "Xiaomi SRC",
+        "url": "https://trust.mi.com/zh-CN/misrc/response",
+        "verification_status": "official_security_entry",
+    },
 ]
+
+DEFAULT_NHTSA_VEHICLES: list[dict[str, str]] = [
+    {"make": "TESLA", "model": "Model S"},
+    {"make": "TESLA", "model": "Model 3"},
+    {"make": "TESLA", "model": "Model X"},
+    {"make": "TESLA", "model": "Model Y"},
+    {"make": "TESLA", "model": "Cybertruck"},
+    {"make": "RIVIAN", "model": "R1T"},
+    {"make": "RIVIAN", "model": "R1S"},
+    {"make": "CHEVROLET", "model": "Bolt EV"},
+    {"make": "CHEVROLET", "model": "Bolt EUV"},
+]
+
+DEFAULT_NHTSA_MODEL_YEARS = 4

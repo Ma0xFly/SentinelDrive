@@ -62,8 +62,22 @@ SOURCE_VENDOR_ADVISORY_ENDPOINTS=[{"vendor":"Bosch","url":"https://psirt.bosch.c
 - Li Auto：`https://security.lixiang.com/`。
 - Qualcomm：`https://www.qualcomm.com/company/product-security` 和 `https://docs.qualcomm.com/product/publicresources/securitybulletin`。
 - Bosch：`https://psirt.bosch.com/security-advisories/`。
+- Vector Informatik：`https://www.vector.com/en/services/security-advisories/`。
+- Wind River：`https://www.windriver.com/security`。
+- Geely GSRC：`https://security.geely.com/`。
+- Xiaomi SRC：`https://trust.mi.com/zh-CN/misrc/response`。
 
 运行时状态：vendor advisory Connector 抓取 endpoint 页面，保存轻量页面 metadata，并记录类似公告的链接。HTML 与 PDF 派生记录使用 metadata-only retention；默认不下载 PDF 附件。
+
+## NHTSA 召回
+
+```env
+SOURCE_ENABLED_NHTSA_RECALLS=false
+```
+
+NHTSA 召回 Connector 默认关闭。它使用免认证的 `https://api.nhtsa.gov/recalls/recallsByVehicle?make=&model=&modelYear=` 端点，按配置的车辆清单（默认 Tesla 全系 + Rivian R1T/R1S + Chevy Bolt EV/EUV，近 4 个 model year）逐车查询，`recallsByMake` 与 `campaigns` 端点因需认证（403）不可用。
+
+运行时状态：只保留软件/OTA 相关召回——`overTheAirUpdate` 布尔位或 Component/Summary 命中软件、telematics、cyber、OTA 等关键词即打 `software_related` 标记，机械类召回在采集层过滤。campaign number 作为 external ID，cursor 保存 `seen_campaigns` 集合实现跨轮幂等。API JSON 以 `raw_payload` 模式保留安全公开召回字段，不回传 VIN/PII。
 
 ## RSS
 

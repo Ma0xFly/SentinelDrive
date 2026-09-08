@@ -338,6 +338,46 @@ class ExternalIngestNormalizer(BaseNormalizer):
         return record
 
 
+class RecallNormalizer(BaseNormalizer):
+    def normalize(self, raw: Mapping[str, Any]) -> NormalizedRecord:
+        metadata = dict(raw.get("metadata") or {})
+        campaign = clean_optional(metadata.get("campaign_number")) or clean_optional(raw.get("external_id"))
+        if not campaign:
+            raise NormalizationError("NHTSA recall raw record missing campaign number")
+        software_related = bool(metadata.get("software_related"))
+        component = clean_optional(metadata.get("component"))
+        title = clean_title(raw.get("title"), raw)
+        summary = clean_optional(raw.get("summary") or raw.get("snippet"))
+        record = self.base_record(
+            raw,
+            title=title,
+            summary=summary,
+            intelligence_type="incident",
+            affected_vendor=clean_optional(metadata.get("make")),
+            affected_product=clean_optional(metadata.get("model")),
+            vehicle_component=infer_vehicle_component(component, title, summary),
+            attack_surface=infer_attack_surface(component, title, summary),
+            confidence="medium",
+            tags=compact_tags(
+                ["recall", "software_related" if software_related else None, "nhtsa", metadata.get("make"), metadata.get("model")]
+            ),
+            metadata={
+                "campaign_number": campaign,
+                "make": metadata.get("make"),
+                "model": metadata.get("model"),
+                "model_year": metadata.get("model_year"),
+                "manufacturer": metadata.get("manufacturer"),
+                "component": component,
+                "report_received_date": metadata.get("report_received_date"),
+                "recall_type": metadata.get("recall_type"),
+                "software_related": software_related,
+                "over_the_air_update": metadata.get("over_the_air_update"),
+            },
+        )
+        record.dedup_key = f"recall:campaign:{campaign}"
+        return record
+
+
 class FallbackNormalizer(BaseNormalizer):
     def normalize(self, raw: Mapping[str, Any]) -> NormalizedRecord:
         text = " ".join(str(raw.get(key) or "") for key in ("title", "summary", "snippet", "source_url", "external_id"))
@@ -361,6 +401,7 @@ def register_builtin_normalizers(target_registry: NormalizerRegistry = registry)
     target_registry.register_source_name("cisa-kev", CisaKevNormalizer)
     target_registry.register_source_name("rss", RssNormalizer)
     target_registry.register_source_name("vendor-advisories", VendorAdvisoryNormalizer)
+    target_registry.register_source_name("nhtsa-recalls", RecallNormalizer)
     target_registry.register_source_type("manual", ManualNormalizer)
     target_registry.register_source_type("rss", RssNormalizer)
     target_registry.register_source_type("vendor", VendorAdvisoryNormalizer)

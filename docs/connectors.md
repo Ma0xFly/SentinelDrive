@@ -26,6 +26,7 @@ Worker 目前包含：
 - `worker/sentineldrive_worker/connectors/contracts.py`：connector protocol、source configuration、cursor context、retry policy 和 Raw Intelligence payload shape。
 - `worker/sentineldrive_worker/connectors/config.py`：基于环境变量并兼容数据库行的数据源配置加载。
 - `worker/sentineldrive_worker/connectors/nvd_cisa.py`：NVD CVE 与 CISA KEV 源特定 Connectors。
+- `worker/sentineldrive_worker/connectors/nhtsa_recalls.py`：NHTSA 召回源特定 Connector。
 - `worker/sentineldrive_worker/connectors/registry.py`：source-agnostic Connector registry。
 - `worker/sentineldrive_worker/connectors/rss_vendor.py`：RSS、Atom 和 vendor advisory metadata Connectors。
 - `worker/sentineldrive_worker/connectors/runtime.py`：enable/disable、timeout、retry、rate limiting 和 error recording helpers。
@@ -94,7 +95,7 @@ SOURCE_RSS_FEEDS=[{"name":"Example Security Feed","url":"https://example.test/se
 - `SOURCE_RATE_LIMIT_PER_MINUTE`
 - `SOURCE_RETRY_ATTEMPTS`
 
-当前数据源启用状态来自 `SOURCE_ENABLED_NVD`、`SOURCE_ENABLED_CISA_KEV`、`SOURCE_ENABLED_VENDOR_ADVISORIES`、`SOURCE_ENABLED_RSS` 和 `SOURCE_ENABLED_SAMPLE`。`SOURCE_RSS_FEEDS` 和 `SOURCE_VENDOR_ADVISORY_ENDPOINTS` 接收公共 feed 或 endpoint objects 的 JSON list。Loader 也支持形状类似后端 `sources` 和 `sync_states` models 的数据库驱动 source rows，因此可以不改 runtime control flow 就新增 RSS feeds 或 vendor endpoints。
+当前数据源启用状态来自 `SOURCE_ENABLED_NVD`、`SOURCE_ENABLED_CISA_KEV`、`SOURCE_ENABLED_VENDOR_ADVISORIES`、`SOURCE_ENABLED_RSS`、`SOURCE_ENABLED_NHTSA_RECALLS` 和 `SOURCE_ENABLED_SAMPLE`。`SOURCE_RSS_FEEDS` 和 `SOURCE_VENDOR_ADVISORY_ENDPOINTS` 接收公共 feed 或 endpoint objects 的 JSON list。Loader 也支持形状类似后端 `sources` 和 `sync_states` models 的数据库驱动 source rows，因此可以不改 runtime control flow 就新增 RSS feeds 或 vendor endpoints。
 
 Secrets 和 private headers 只能保存在 `SourceConfig.credentials` 和 `SourceConfig.headers`；runtime summaries 和 errors 不得打印它们。数据库驱动的 `config.feeds` 与 `config.endpoints` 会保留到 source metadata，而 `config.credentials` 和 `config.headers` 会从 runtime summaries 中排除。
 
@@ -175,7 +176,8 @@ Contract、source Connector 和 persistence tests 位于 `worker/tests/`。它�
 - `nvd`：使用 NVD API 2.0 CVE modified-date windows，通过 `apiKey` header 支持可选 `NVD_API_KEY`，首轮同步保守，分页有上限。
 - `cisa-kev`：解析包含 `vulnerabilities` arrays 的官方风格 JSON catalogs，以及字段等价的 CSV catalogs。
 - `rss`：解析可配置 RSS 2.0 和 Atom feeds，保留 feed attribution、item timestamps、canonical URL、deterministic external ID 和 stable hashes。
-- `vendor-advisories`：抓取配置的 vendor endpoints，记录页面 metadata 和类似公告的 links，并保持 HTML/PDF 派生 payloads 为 metadata-only。内置代表性 seed list 覆盖 BYD、NIO、Li Auto、Qualcomm 和 Bosch；BYD 标记为 manual-review fallback entry point。
+- `vendor-advisories`：抓取配置的 vendor endpoints，记录页面 metadata 和类似公告的 links，并保持 HTML/PDF 派生 payloads 为 metadata-only。内置代表性 seed list 覆盖 BYD、NIO、Li Auto、Qualcomm、Bosch、Vector Informatik、Wind River、Geely GSRC 和 Xiaomi SRC；BYD 标记为 manual-review fallback entry point。
+- `nhtsa-recalls`：按配置车辆清单查询 NHTSA `recallsByVehicle`，把软件/OTA 相关召回映射为 `incident`，机械类召回在采集层过滤，campaign number 作为 external ID，跨轮幂等。
 
 Connectors 只发出 `RawIntelligencePayload` items。规范化与去重由 worker normalization package 处理。固定评分由 worker scoring package 处理。搜索和告警评估留在 Connector 外部。
 

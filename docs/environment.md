@@ -56,6 +56,7 @@ Redis 必须保持 Compose 内部服务。
 | `SOURCE_ENABLED_CISA_KEV` | `backend`, `worker`, `scheduler` | `true` | 启用 CISA KEV Connector。 |
 | `SOURCE_ENABLED_VENDOR_ADVISORIES` | `backend`, `worker`, `scheduler` | `false` | 启用端点驱动的厂商公告 metadata 采集。 |
 | `SOURCE_ENABLED_RSS` | `backend`, `worker`, `scheduler` | `true` | 启用可配置 RSS/Atom feed 采集。 |
+| `SOURCE_ENABLED_NHTSA_RECALLS` | `worker`, `scheduler` | `false` | 启用 NHTSA 召回 Connector，采集软件/OTA 相关召回并在采集层过滤机械类召回。 |
 | `SOURCE_RSS_FEEDS` | `backend`, `worker`, `scheduler` | `[]` | RSS/Atom feed 对象 JSON list。每个对象应包含 `url`，可选 `name` 和 `source` 会作为 metadata 保留。 |
 | `SOURCE_VENDOR_ADVISORY_ENDPOINTS` | `backend`, `worker`, `scheduler` | empty | 厂商端点对象 JSON list。为空时使用内置代表性 seed list。 |
 | `SOURCE_ENABLED_SAMPLE` | `worker`, `scheduler` | `true` | 启用 sample no-op Connector，用于验证 worker runtime path。 |

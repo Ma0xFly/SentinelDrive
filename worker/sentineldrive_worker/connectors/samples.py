@@ -9,6 +9,7 @@ from sentineldrive_worker.connectors.contracts import (
     SourceConfig,
 )
 from sentineldrive_worker.connectors.nvd_cisa import CisaKevConnector, NvdConnector
+from sentineldrive_worker.connectors.nhtsa_recalls import NhtsaRecallsConnector
 from sentineldrive_worker.connectors.registry import ConnectorRegistry, registry
 from sentineldrive_worker.connectors.rss_vendor import RssConnector, VendorAdvisoryConnector
 
@@ -45,4 +46,5 @@ def register_builtin_connectors(target_registry: ConnectorRegistry = registry) -
     target_registry.register("cisa-kev", CisaKevConnector)
     target_registry.register("rss", RssConnector)
     target_registry.register("vendor-advisories", VendorAdvisoryConnector)
+    target_registry.register("nhtsa-recalls", NhtsaRecallsConnector)
     return target_registry

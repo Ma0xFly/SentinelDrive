@@ -429,6 +429,48 @@ def test_external_ingest_reprocessing_converges_on_single_core_record(session_fa
         assert len(session.execute(select(threat_intelligence_sources)).mappings().all()) == 1
 
 
+def test_nhtsa_recall_normalizes_to_incident(session_factory):
+    source_id = seed_source(session_factory, "nhtsa-recalls", "api")
+    seed_raw(
+        session_factory,
+        source_id=source_id,
+        source_name="nhtsa-recalls",
+        source_type="api",
+        source_url="https://www.nhtsa.gov/recalls?campaignNumber=22V063000",
+        external_id="22V063000",
+        title="TESLA Model 3 2026 召回 22V063000",
+        summary="Software-related recall remediation.",
+        first_seen_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+        metadata={
+            "campaign_number": "22V063000",
+            "make": "TESLA",
+            "model": "Model 3",
+            "model_year": 2026,
+            "manufacturer": "Example Motors, LLC",
+            "component": "SOFTWARE UPDATE",
+            "software_related": True,
+            "over_the_air_update": True,
+            "report_received_date": "2026-04-01",
+            "recall_type": "L",
+        },
+    )
+
+    result = normalize_pending_raw_intelligence(session_factory=session_factory)
+
+    assert result["normalized"] == 1
+    with session_factory() as session:
+        record = session.execute(select(threat_intelligence)).mappings().one()
+        assert record["intelligence_type"] == "incident"
+        assert record["dedup_key"] == "recall:campaign:22V063000"
+        assert {"recall", "software_related", "nhtsa"}.issubset(set(record["tags"]))
+        assert record["affected_vendor"] == "TESLA"
+        assert record["affected_product"] == "Model 3"
+        source_links = session.execute(select(threat_intelligence_sources)).mappings().all()
+        assert len(source_links) == 1
+        assert source_links[0]["source_name"] == "nhtsa-recalls"
+        assert source_links[0]["external_id"] == "22V063000"
+
+
 def seed_source(session_factory, name: str, source_type: str):
     source_id = uuid4()
     with session_factory() as session:
