@@ -28,6 +28,7 @@ modified: Planner 创建 Plan，并由中文 APM 上下文重构。
 | 7 | 运维加固与管道自动化 | 4 | Intelligence Pipeline Agent, Backend Agent, Frontend Agent, QA Documentation Agent, Platform Agent |
 | 8 | 前端适配与 AI 情报接入预留 | 4 | Frontend Agent, Backend Agent, Intelligence Pipeline Agent, QA Documentation Agent |
 | 9 | 前端 Pro v6 迁移与威胁态势仪表盘 | 5 | Frontend Agent, Backend Agent, QA Documentation Agent |
+| 10 | 访客只读访问与垂直信源扩展 | 4 | Backend Agent, Frontend Agent, Intelligence Pipeline Agent, QA Documentation Agent |
 
 ## Dependency Graph
 
@@ -135,6 +136,17 @@ subgraph S9["Stage 9: 前端 Pro v6 迁移与威胁态势仪表盘"]
   T9_4 -.-> T9_5
 end
 
+subgraph S10["Stage 10: 访客只读访问与垂直信源扩展"]
+  direction LR
+  T10_1["10.1 访客只读后端<br/><i>Backend Agent</i>"]
+  T10_2["10.2 访客只读前端<br/><i>Frontend Agent</i>"]
+  T10_3["10.3 垂直信源扩展<br/><i>Intelligence Pipeline Agent</i>"]
+  T10_4["10.4 配置与文档同步<br/><i>QA Documentation Agent</i>"]
+  T10_1 -.-> T10_2
+  T10_2 -.-> T10_4
+  T10_3 -.-> T10_4
+end
+
 T1_1 -.-> T1_2
 T1_1 -.-> T1_3
 T1_1 -.-> T1_4
@@ -168,6 +180,8 @@ T6_4 -.-> T7_4
 T7_2 -.-> T8_1
 T7_3 -.-> T8_4
 T8_4 -.-> T9_1
+T9_5 -.-> T10_1
+T9_5 -.-> T10_3
 
 style T1_1 fill:#8ecae6,color:#000
 style T2_4 fill:#8ecae6,color:#000
@@ -209,6 +223,10 @@ style T9_2 fill:#ffb703,color:#000
 style T9_3 fill:#f4a261,color:#000
 style T9_4 fill:#f4a261,color:#000
 style T9_5 fill:#cdb4db,color:#000
+style T10_1 fill:#ffb703,color:#000
+style T10_2 fill:#f4a261,color:#000
+style T10_3 fill:#90be6d,color:#000
+style T10_4 fill:#cdb4db,color:#000
 ```
 
 ---
@@ -794,3 +812,63 @@ style T9_5 fill:#cdb4db,color:#000
 3. 移除旧 Next.js 前端并归位目录，清理全仓残留引用。
 4. 同步 README、testing、部署与前端相关文档。
 5. 运行 Compose 校验与 E2E，记录 QA 结果与残余风险。
+
+## Stage 10: 访客只读访问与垂直信源扩展
+
+> **背景与范围决策（2026-09-08 Manager 与用户确认）：** 用户要求新增访客只读访问（威胁情报、信源、态势仪表盘可匿名浏览，一律只读不可修改），并扩展垂直信源。经评审确认：① 访客只读的公开边界为「情报列表/详情 + 信源非敏感字段 + 仪表盘统计」，写操作、导出、告警处置、手工录入、用户管理、信源运维细节（任务日志/最近错误/失败次数/处理计数）保持登录；② 信源扩展按「A 补 vendor 端点（零代码）+ B 新增 NHTSA 召回 connector」执行，通用威胁情报库全部搁置；③ AI 助手继续不做。NHTSA 召回归属 `incident` 情报类型（软件/OTA 相关打 `recall`/`software_related` 标签，机械类采集层过滤）。
+
+### Task 10.1: 访客只读后端 - Backend Agent
+
+* **目标：** 为威胁情报、信源、态势仪表盘提供匿名只读访问，同时保持所有写操作与敏感运维字段的认证要求。
+* **产出：** `get_optional_current_user` 依赖、`GET /intelligence`（列表/详情）、`GET /sources`（非敏感字段）与 `GET /stats/overview` 的公开只读改造、写端点保持认证的回归、聚焦测试。
+* **验收：** 未认证可读情报列表/详情、信源非敏感字段、态势统计；未认证访问写端点（`POST /manual-entries`、`PATCH /alerts/*/status`、`PATCH /sources/*/status`、`POST /sources/pipeline/trigger`、导出端点）仍 401；信源任务日志/最近错误/处理计数仅认证用户可见；测试通过且无敏感字段泄露。
+* **执行指导：** 复用 `HTTPBearer(auto_error=False)` 语义新增可选用户依赖（无凭据返回 `None`，有凭据复用 `decode_access_token`）。公开 read 面不引入新的公开写入口；`/sources` 列表响应把运维字段（任务日志、错误、计数）从公开形态剥离或按认证态裁减。不更改已批准的产品范围。
+* **依赖：** 无
+
+1. 在 `app/api/deps.py` 新增 `get_optional_current_user`，无凭据返回 `None`。
+2. 识别公开 read 面端点并用可选用户依赖替换强制认证。
+3. 将 `/sources` 的运维敏感字段按认证态裁减（未认证不返回任务日志/错误/计数）。
+4. 确保写端点、导出、告警、手工录入仍强制认证与管理员校验。
+5. 编写匿名读、认证读、未认证写拒绝、运维字段裁剪测试。
+
+### Task 10.2: 访客只读前端 - Frontend Agent
+
+* **目标：** 前端支持未登录访客浏览公开只读内容，同时隐藏所有写操作入口并保留登录入口。
+* **产出：** 路由/权限守卫放行公开页、访客只读视图（隐藏告警处置、手工录入、数据源启停、用户管理、导出等入口）、顶部访客提示与登录入口、聚焦测试或前端检查。
+* **验收：** 未登录可浏览情报列表/详情、数据源（非敏感字段）、态势总览；写操作按钮/菜单对访客不可见或禁用；登录入口可见；已登录行为不变；`pnpm build` 与 `pnpm test` 通过。
+* **执行指导：** 遵循 Spec 的“前端工作台”。访客模式下侧边导航仅显示公开页面；`access.ts`/`getInitialState` 需允许 `currentUser` 为空时进入公开页而非强制跳登录。不改后端契约。
+* **依赖：** **Task 10.1 by Backend Agent**
+
+1. 调整路由守卫与 `getInitialState`，允许未登录访问公开页。
+2. 未登录时隐藏写操作与受限菜单，展示“访客模式”提示与登录入口。
+3. 情报详情、数据源、态势总览页适配无用户态渲染（空告警/无导出按钮）。
+4. 保持已登录用户完整工作台行为不变。
+5. 运行前端构建与测试，补充访客/守卫聚焦测试。
+
+### Task 10.3: 垂直信源扩展（NHTSA 召回 + vendor 端点） - Intelligence Pipeline Agent
+
+* **目标：** 新增 NHTSA 车辆召回 connector 并接入规范化/去重管线，同时扩充 vendor-advisories 默认端点。
+* **产出：** `NhtsaRecallsConnector`（`api.nhtsa.gov/recalls/recallsByVehicle`，免 key）、软件/OTA 关联过滤、召回→`incident` 的 normalizer 或源特定映射、`DEFAULT_VENDOR_ENDPOINTS` 扩充（Vector Informatik / Wind River / Geely / 小米）、聚焦测试。
+* **验收：** NHTSA connector 可按配置化车辆清单采集召回条目并用 campaign number 做 `external_id` + `seen_campaigns` cursor 幂等；`overTheAirUpdate` 与 Component/Summary 关键词（software/telematics/cyber/OTA）标记 `software_related`，机械召回不进入情报；条目归 `incident` 并带 `recall`/`software_related` 标签；vendor 端点扩充后在 `SOURCE_ENABLED_VENDOR_ADVISORIES=true` 时可采集新厂商；mock 测试覆盖 happy path、403/畸形 JSON、`Count=0` 宽容、车辆间隔离；worker 测试无回归。
+* **执行指导：** 复用现有 `HttpClient` 与 `RawIntelligencePayload`；vehicle 端点按 make/model/modelYear 逐台查，车辆清单经 `metadata.vehicles` 配置化（默认 Tesla 全系 + Rivian R1T/R1S + Chevy Bolt EV/EUV）；model 名用 VPIC 规范名，`Count=0` 不算错误；不采集任何含 VIN/PII 的字段；留存走 `raw_payload`；默认 `SOURCE_ENABLED_NHTSA_RECALLS=false`。保持 Source Connector 边界，源特定逻辑仅在 connector 内。若需要同步 connector 文档，一并更新 `docs/source-configuration.md`。
+* **依赖：** 无
+
+1. 定义 NHTSA 召回采集契约与配置化车辆清单。
+2. 实现 `recallsByVehicle` 请求、VPIC 规范 model 名、`Count=0` 宽容与分页/限速。
+3. 实现软件/OTA 关联过滤与 metadata 标记，机械召回过滤。
+4. 将召回条目接入 normalizer，归属 `incident` 并打标签，campaign number 幂等去重。
+5. 扩充 `DEFAULT_VENDOR_ENDPOINTS`；编写 mock 测试与 connector 文档，运行 worker 测试。
+
+### Task 10.4: 配置与文档同步 - QA Documentation Agent
+
+* **目标：** 同步环境变量、文档与浏览器级验证，覆盖访客只读访问与新增垂直信源。
+* **产出：** `.env.example` 增补访客/信源相关变量（如 `SOURCE_ENABLED_NHTSA_RECALLS`、`SOURCE_ENABLED_VENDOR_ADVISORIES` 说明）、`docs/source-configuration.md` 补 NHTSA 与新增 vendor 端点、README/testing 补访客只读说明、访客浏览场景的 Playwright E2E、QA 总结。
+* **验收：** 文档命令、变量与实现一致；无占位；新数据源默认关闭策略被记录；访客浏览 E2E（未登录可读情报/数据源/态势、写入口隐藏）通过；不依赖真实外部数据源。
+* **执行指导：** 遵循 Spec 的“文档要求”。E2E 保持小而高价值，沿用 mock `/api/*` 约定。访客只读与信源扩展均为既有范围的自然延伸，文档描述不得编造未实现的公开行为。
+* **依赖：** **Task 10.2 by Frontend Agent**, **Task 10.3 by Intelligence Pipeline Agent**
+
+1. 更新 `.env.example` 与 `docs/source-configuration.md` 记录新增信源与默认关闭策略。
+2. 更新 README/`docs/testing.md` 补充访客只读访问与验证命令。
+3. 编写未登录访客浏览情报/数据源/态势的 Playwright 场景（写入口隐藏断言）。
+4. 运行 E2E 与文档链接校验，确保命令、服务名与实现一致。
+5. 记录 QA 结果与残余风险。
