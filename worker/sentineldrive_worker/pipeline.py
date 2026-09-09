@@ -28,8 +28,8 @@ def run_processing_pipeline(
     session_factory: Callable[[], Session] | None = None,
     database_url: str | None = None,
     normalizer_registry: NormalizerRegistry = normalizer_registry,
-    normalization_limit: int = 100,
-    scoring_limit: int = 100,
+    normalization_limit: int = 500,
+    scoring_limit: int = 500,
     alert_limit: int = 100,
     alert_evaluator: AlertEvaluator | None = None,
 ) -> dict[str, Any]:

@@ -113,10 +113,12 @@ def normalize_pending_raw_intelligence(
 
 
 def pending_raw_query(limit: int) -> Select:
+    # 最近采集/新建的原始情报优先归一化：避免历史 backlog（NVD 重抓的多年前 CVE、
+    # KEV 整目录重抓重置的老条目）长期占满批次，导致新情报饿死在队尾、趋势图长期为空。
     return (
         select(raw_intelligence)
         .where(raw_intelligence.c.processing_status.in_(("pending", "collected")))
-        .order_by(raw_intelligence.c.first_seen_at.asc(), raw_intelligence.c.created_at.asc())
+        .order_by(raw_intelligence.c.created_at.desc(), raw_intelligence.c.fetched_at.desc())
         .limit(limit)
     )
 

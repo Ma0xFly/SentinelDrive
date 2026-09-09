@@ -93,7 +93,10 @@ def test_nvd_and_cisa_kev_same_cve_merge_into_one_core_record(session_factory):
         assert record["cvss_score"] == 9.8
         assert record["severity"] == "critical"
         assert record["exploit_status"] == "exploited"
-        assert record["affected_vendor"] == "exampleauto"
+        # 归一化改为「最近采集优先」后，KEV（dateAdded 较晚）先于 NVD 落库，
+        # affected_vendor 这类「首写者胜」的保守字段取 KEV 的官方 vendor_project
+        # 大小写（ExampleAuto），而非 NVD CPE 推导的小写值。
+        assert record["affected_vendor"] == "ExampleAuto"
         assert set(record["source_names"]) == {"nvd", "cisa-kev"}
         assert {"nvd", "cisa-kev", "kev", "known_exploited"}.issubset(set(record["tags"]))
         source_links = session.execute(select(threat_intelligence_sources)).mappings().all()
@@ -469,6 +472,56 @@ def test_nhtsa_recall_normalizes_to_incident(session_factory):
         assert len(source_links) == 1
         assert source_links[0]["source_name"] == "nhtsa-recalls"
         assert source_links[0]["external_id"] == "22V063000"
+
+
+def test_normalization_prioritizes_recently_collected_raw(session_factory):
+    """回归保护：归一化必须「最近采集优先」。
+
+    历史 bug 是按 first_seen_at 升序（最老优先），导致 NVD 重抓的多年前 CVE、
+    KEV 整目录重抓的老条目长期占满批次，新情报饿死在队尾、趋势图长期为空。
+    本用例先播老条目再播新条目，limit=1 时必须归一化新条目。
+    """
+    source_id = seed_source(session_factory, "rss", "rss")
+    old_id = seed_raw(
+        session_factory,
+        source_id=source_id,
+        source_name="rss",
+        source_type="rss",
+        source_url="https://example.test/old-advisory",
+        external_id="adv-old",
+        title="Old advisory CVE-2026-9001",
+        summary="Older collected advisory.",
+        first_seen_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        metadata={"feed_name": "Example Feed", "feed_url": "https://example.test/feed.xml"},
+    )
+    new_id = seed_raw(
+        session_factory,
+        source_id=source_id,
+        source_name="rss",
+        source_type="rss",
+        source_url="https://example.test/new-advisory",
+        external_id="adv-new",
+        title="New advisory CVE-2026-9002",
+        summary="Recently collected advisory.",
+        first_seen_at=datetime(2026, 9, 1, tzinfo=timezone.utc),
+        metadata={"feed_name": "Example Feed", "feed_url": "https://example.test/feed.xml"},
+    )
+
+    result = normalize_pending_raw_intelligence(session_factory=session_factory, limit=1)
+
+    assert result["raw_seen"] == 1
+    assert result["normalized"] == 1
+    assert result["records"][0]["raw_intelligence_id"] == str(new_id)
+    assert result["records"][0]["raw_intelligence_id"] != str(old_id)
+    with session_factory() as session:
+        old_status = session.execute(
+            select(raw_intelligence.c.processing_status).where(raw_intelligence.c.id == old_id)
+        ).scalar_one()
+        new_status = session.execute(
+            select(raw_intelligence.c.processing_status).where(raw_intelligence.c.id == new_id)
+        ).scalar_one()
+    assert new_status == "normalized"
+    assert old_status == "collected"
 
 
 def seed_source(session_factory, name: str, source_type: str):

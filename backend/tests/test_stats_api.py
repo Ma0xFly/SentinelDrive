@@ -58,6 +58,8 @@ class StatsSession:
         now = datetime.now(timezone.utc)
         entry_id = overrides.pop("id", uuid4())
         first_seen_at = overrides.pop("first_seen_at", now - timedelta(hours=1))
+        created_at = overrides.pop("created_at", first_seen_at)
+        updated_at = overrides.pop("updated_at", created_at)
         entry = ThreatIntelligence(
             id=entry_id,
             title=overrides.pop("title", f"CVE-2026-3001 affects vehicle T-Box {len(self.entries)}"),
@@ -76,8 +78,8 @@ class StatsSession:
             dedup_key=overrides.pop("dedup_key", f"stats-test:{entry_id}"),
             processing_status=overrides.pop("processing_status", ProcessingStatus.NORMALIZED),
             status="active",
-            created_at=first_seen_at,
-            updated_at=first_seen_at,
+            created_at=created_at,
+            updated_at=updated_at,
         )
         if overrides:
             raise AssertionError(f"Unhandled entry overrides: {sorted(overrides)}")
@@ -343,6 +345,40 @@ async def test_stats_overview_trend_zero_fills_missing_days_and_respects_window_
     assert trend[5] == {"date": trend[5]["date"], "count": 0}
     assert sum(point["count"] for point in trend) == 3
     assert body["totals"]["total_intelligence"] == 4
+
+
+@pytest.mark.anyio
+async def test_stats_overview_trend_uses_ingestion_date_not_publish_date():
+    """近30天「新增」按入库时间 created_at 统计，而非发布日 first_seen_at。
+
+    发布日很旧、但近期才被采集入库的情报应计入近30天趋势与新增总量；
+    发布日在近30天、但入库已久的情报不应仅因发布日而被计入。
+    """
+    session = StatsSession()
+    now = datetime.now(timezone.utc)
+    today = now.date()
+    ingested_today = datetime.combine(today, time(8, 0), tzinfo=timezone.utc)
+    # 发布日 3 年前，但今天才入库 → 应计入近30天
+    session.seed_entry(
+        first_seen_at=now - timedelta(days=1095),
+        created_at=ingested_today,
+        dedup_key="stats-test:old-publish-new-ingest",
+    )
+    # 发布日今天，但入库在 40 天前 → 不计入近30天新增
+    session.seed_entry(
+        first_seen_at=now - timedelta(hours=1),
+        created_at=now - timedelta(days=40),
+        dedup_key="stats-test:new-publish-old-ingest",
+    )
+
+    body = await fetch_overview(session)
+
+    assert body["totals"]["total_intelligence"] == 2
+    assert body["totals"]["new_last_24_hours"] == 1
+    assert body["totals"]["new_last_7_days"] == 1
+    trend = body["trend"]
+    assert sum(point["count"] for point in trend) == 1
+    assert trend[-1] == {"date": today.isoformat(), "count": 1}
 
 
 @pytest.mark.anyio
