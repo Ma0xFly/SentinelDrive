@@ -1,7 +1,7 @@
 import { LockOutlined, SafetyCertificateOutlined, UserOutlined } from '@ant-design/icons';
 import { LoginForm, ProFormText } from '@ant-design/pro-components';
-import { Helmet, useModel } from '@umijs/max';
-import { App } from 'antd';
+import { Helmet, history, useModel } from '@umijs/max';
+import { App, Button } from 'antd';
 import React, { startTransition } from 'react';
 import { Footer } from '@/components';
 import { login } from '@/services/auth';
@@ -59,6 +59,11 @@ const Login: React.FC = () => {
     }
   };
 
+  const handleGuestBrowse = () => {
+    // 访客入口：公开页免登录，直接进入态势总览（受保护页仍会按守卫跳回登录）
+    history.push('/dashboard');
+  };
+
   return (
     <div
       style={{
@@ -107,6 +112,11 @@ const Login: React.FC = () => {
           <div style={{ marginBottom: 24, color: 'rgba(0,0,0,0.45)', fontSize: 12 }}>
             <SafetyCertificateOutlined style={{ marginRight: 6 }} />
             访问受审计保护，登录行为将被记录。
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <Button type="link" htmlType="button" onClick={handleGuestBrowse}>
+              以访客身份浏览 →
+            </Button>
           </div>
         </LoginForm>
       </div>
