@@ -67,13 +67,15 @@ def _sql_overview(
     return StatsOverviewResponse(
         totals=StatsTotalsResponse(
             total_intelligence=_sql_intelligence_count(session),
+            # 「新增」按入库时间 created_at 统计（平台何时新增该情报），
+            # 而非发布日 first_seen_at，避免历史漏洞被采集时不计入近期新增。
             new_last_24_hours=_sql_intelligence_count(
                 session,
-                ThreatIntelligence.first_seen_at >= now - RECENT_WINDOW_24_HOURS,
+                ThreatIntelligence.created_at >= now - RECENT_WINDOW_24_HOURS,
             ),
             new_last_7_days=_sql_intelligence_count(
                 session,
-                ThreatIntelligence.first_seen_at >= now - RECENT_WINDOW_7_DAYS,
+                ThreatIntelligence.created_at >= now - RECENT_WINDOW_7_DAYS,
             ),
         ),
         by_intelligence_type=_sql_distribution(session, ThreatIntelligence.intelligence_type, _INTELLIGENCE_TYPE_KEYS),
@@ -84,7 +86,7 @@ def _sql_overview(
             ThreatIntelligence.processing_status,
             _PROCESSING_STATUS_KEYS,
         ),
-        trend=_sql_daily_trend(session, ThreatIntelligence.first_seen_at, days, window_start),
+        trend=_sql_daily_trend(session, ThreatIntelligence.created_at, days, window_start),
         alerts=_sql_alerts(session, days, window_start),
         sources=_sql_sources(session),
     )
@@ -104,17 +106,17 @@ def _fallback_overview(
         totals=StatsTotalsResponse(
             total_intelligence=len(entries),
             new_last_24_hours=sum(
-                1 for entry in entries if entry.first_seen_at >= now - RECENT_WINDOW_24_HOURS
+                1 for entry in entries if entry.created_at >= now - RECENT_WINDOW_24_HOURS
             ),
             new_last_7_days=sum(
-                1 for entry in entries if entry.first_seen_at >= now - RECENT_WINDOW_7_DAYS
+                1 for entry in entries if entry.created_at >= now - RECENT_WINDOW_7_DAYS
             ),
         ),
         by_intelligence_type=_fallback_distribution(entries, "intelligence_type", _INTELLIGENCE_TYPE_KEYS),
         by_severity=_fallback_distribution(entries, "severity", _SEVERITY_KEYS),
         by_risk_level=_fallback_distribution(entries, "risk_level", _RISK_LEVEL_KEYS),
         by_processing_status=_fallback_distribution(entries, "processing_status", _PROCESSING_STATUS_KEYS),
-        trend=_fallback_daily_trend(entries, "first_seen_at", days, window_start),
+        trend=_fallback_daily_trend(entries, "created_at", days, window_start),
         alerts=StatsAlertsResponse(
             total=len(alerts),
             by_status=_fallback_distribution(alerts, "status", _ALERT_STATUS_KEYS),
